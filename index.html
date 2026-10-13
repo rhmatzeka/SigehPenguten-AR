@@ -105,10 +105,12 @@
       $("galat").textContent = pesan;
       $("galat").hidden = false;
       $("mulai").disabled = false;
+      $("mulai").textContent = "Mulai AR";
     }
 
     async function mulai() {
       $("mulai").disabled = true;
+      $("mulai").textContent = "Menyiapkan kamera…";
       $("galat").hidden = true;
       if (!navigator.mediaDevices?.getUserMedia) {
         galat("Browser ini tidak mendukung kamera. Buka link di Chrome atau Safari.");
@@ -136,7 +138,8 @@
       let mixer = null;
       $("muat").hidden = false;
       const muatModel = new GLTFLoader().loadAsync("assets/penari.glb", (e) => {
-        if (e.total) $("persen").textContent = Math.round((e.loaded / e.total) * 100);
+        // GitHub Pages mengompres file, jadi total bisa lebih kecil dari yang terunduh
+        if (e.total) $("persen").textContent = Math.min(99, Math.round((e.loaded / e.total) * 100));
       }).then((gltf) => {
         const model = gltf.scene;
         model.traverse((o) => {

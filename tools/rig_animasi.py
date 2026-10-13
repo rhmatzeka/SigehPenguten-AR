@@ -372,6 +372,33 @@ def pasang_gerak(arm, J_rest):
     print("keyframe", n, "frame")
 
 
+def tempel_lantai(arm, obj):
+    """Tiap frame: geser seluruh rig supaya titik terendah mesh (ujung rok/kaki/lutut) tepat di lantai z=0."""
+    sc = bpy.context.scene
+    n = len(obj.data.vertices)
+    idx = np.arange(0, n, 7)
+    terendah = []
+    for f in range(sc.frame_start, sc.frame_end + 1):
+        sc.frame_set(f)
+        dg = bpy.context.evaluated_depsgraph_get()
+        ev = obj.evaluated_get(dg)
+        me = ev.to_mesh()
+        m = len(me.vertices)
+        co = np.empty(m * 3)
+        me.vertices.foreach_get("co", co)
+        ev.to_mesh_clear()
+        z = co.reshape(-1, 3)[idx[idx < m], 2]
+        terendah.append(float(np.percentile(z, 0.3)))  # abaikan 0.3% titik paling bawah (serpihan)
+    t = np.array(terendah)
+    # haluskan sedikit supaya tidak bergetar, tapi tetap mengikuti saat berlutut
+    k = np.exp(-0.5 * (np.arange(-6, 7) / 2.5) ** 2); k /= k.sum()
+    t = np.convolve(np.pad(t, 6, mode="edge"), k, mode="valid")
+    for i, f in enumerate(range(sc.frame_start, sc.frame_end + 1)):
+        arm.location.z = -t[i]
+        arm.keyframe_insert("location", index=2, frame=f)
+    print(f"tempel lantai: koreksi {t.min():.3f}..{t.max():.3f}")
+
+
 def main():
     obj = siapkan_model()
     J = sendi_dari_foto(obj)
@@ -379,6 +406,7 @@ def main():
     arm = buat_armature(daftar)
     pasang_bobot(obj, arm, J)
     pasang_gerak(arm, J)
+    tempel_lantai(arm, obj)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_animations=True,
                               export_force_sampling=True, export_optimize_animation_size=True,

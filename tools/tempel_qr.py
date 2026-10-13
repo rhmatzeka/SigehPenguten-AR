@@ -8,6 +8,8 @@ import sys
 import segno
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+# link lama sengaja dipertahankan: QR di poster yang sudah dicetak memakai ini, dan repo
+# rhmatzeka/tari-sigeh-penguten mengalihkannya ke rhmatzeka.github.io/SigehPenguten-AR
 URL = "https://rhmatzeka.github.io/tari-sigeh-penguten/"
 SKALA = 2
 TINTA = "#2b1a0a"

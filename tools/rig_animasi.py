@@ -308,7 +308,10 @@ def pasang_gerak(arm, J_rest):
             else:
                 bawa = rest.copy()
             R_bawa = bawa.to_3x3()
-            if nama in F_rest:
+            if nama in ("head", "neck"):
+                # telinga & hidung tertutup siger sehingga titik MediaPipe meleset; leher dan kepala ikut dada
+                R = R_bawa
+            elif nama in F_rest:
                 R = F_now[nama] @ F_rest[nama].transposed() @ rest.to_3x3()
             elif nama == "spine":
                 qa = (F_now["hips"] @ F_rest["hips"].transposed()).to_quaternion()

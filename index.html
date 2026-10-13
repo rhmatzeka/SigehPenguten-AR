@@ -66,6 +66,13 @@
     #info .jenis { margin: 0 0 8px; font-size: .78rem; font-weight: 700; color: #b8862f; text-transform: uppercase; letter-spacing: .04em; }
     #info p.isi { margin: 0; line-height: 1.5; font-size: .92rem; color: #3d2a14; }
     #tutup { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; padding: 0; font-size: 1rem; background: #ead9b8; color: var(--ink); }
+    #ar, #ar canvas, #ar video { touch-action: none; }
+    #gestur {
+      position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);
+      top: calc(16px + env(safe-area-inset-top)); background: rgba(43, 26, 10, .85); color: #fdf6dc;
+      border-radius: 999px; padding: 9px 16px; font-size: .85rem; font-weight: 600; white-space: nowrap;
+      pointer-events: none; transition: opacity .6s;
+    }
     [hidden] { display: none !important; }
   </style>
   <script type="importmap">
@@ -98,6 +105,7 @@
 
   <div id="muat" hidden>Memuat penari… <span id="persen">0</span>%</div>
   <div id="petunjuk" hidden>Arahkan kamera ke poster</div>
+  <div id="gestur" hidden>Cubit untuk zoom · geser untuk memutar · ketuk 2x untuk ulang</div>
   <svg id="garis" hidden></svg>
   <div id="pil-pil"></div>
   <div id="alat" hidden>
@@ -319,6 +327,12 @@
       anchor.group.add(panggung);
 
       let mixer = null;
+      let penari = null;
+      // bidang lantai panggung di ruang dunia (n·p + d = tinggi di atas lantai), diperbarui tiap frame
+      const lantai = { n: { value: new THREE.Vector3(0, 1, 0) }, d: { value: 0 } };
+      const tmpN = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
+      // parameter tes: ?t=20 mulai dari detik 20, ?jeda berhenti di situ
+      const param = new URLSearchParams(location.search);
       let tampil = 0;      // 0..1 untuk efek muncul
       let terlihat = false;
       $("muat").hidden = false;
@@ -333,6 +347,26 @@
           o.frustumCulled = false; // mesh beranimasi bisa keluar dari kotak batas aslinya
           const m = o.material;
           if (m.map) {
+            // kain dua sisi: bagian dalam rok/baju tidak tampak bolong hitam
+            m.side = THREE.DoubleSide;
+            // rok tergerai: titik yang tembus lantai panggung didorong rata ke permukaan lantai,
+            // jadi saat duduk bersimpuh kain tapis terhampar di lantai, tidak menembus/mencuat
+            m.onBeforeCompile = (sh) => {
+              sh.uniforms.uLantaiN = lantai.n;
+              sh.uniforms.uLantaiD = lantai.d;
+              sh.vertexShader = sh.vertexShader
+                .replace("#include <common>", "#include <common>\nuniform vec3 uLantaiN;\nuniform float uLantaiD;")
+                .replace("#include <skinning_vertex>", `#include <skinning_vertex>
+                  {
+                    vec4 dunia = modelMatrix * vec4(transformed, 1.0);
+                    float tinggi = dot(dunia.xyz, uLantaiN) + uLantaiD;
+                    float angkat = 0.0025;
+                    if (tinggi < angkat) {
+                      dunia.xyz += uLantaiN * (angkat - tinggi);
+                      transformed = (inverse(modelMatrix) * dunia).xyz;
+                    }
+                  }`);
+            };
             // tekstur dari foto sudah berisi cahaya asli: kurangi efek logam & beri sedikit cahaya diri
             // supaya kulit dan kain tetap seperti foto, tidak abu-abu
             m.metalness = 0;
@@ -347,10 +381,15 @@
           }
         });
         model.scale.setScalar(SKALA);
-        model.position.z = MAJU;
         panggung.add(lantaiPanggung());
-        panggung.add(model);
-        panggung.add(bayanganKaki());
+        // penari + bayangan dalam satu grup supaya bisa diputar di tempat (poros = titik berdiri)
+        penari = new THREE.Group();
+        penari.position.z = MAJU;
+        penari.add(model);
+        const bayangan = bayanganKaki();
+        bayangan.position.z = 0;
+        penari.add(bayangan);
+        panggung.add(penari);
         // tulang untuk titik keterangan (GLTFLoader membuang titik dari nama: hand.R -> handR)
         for (const k of KETERANGAN) {
           k.obj = model.getObjectByName(k.tulang);
@@ -368,10 +407,55 @@
         $("mode").onclick = () => { mode = mode === "dinding" ? "meja" : "dinding"; aturMode(panggung); };
         mixer = new THREE.AnimationMixer(model);
         mixer.clipAction(gltf.animations[0]).play();
+        if (param.has("t")) mixer.setTime(parseFloat(param.get("t")) || 0);
+        if (param.has("jeda")) mixer.timeScale = 0;
         $("muat").hidden = true;
         panggung.visible = true;
         latar.visible = true;
       });
+
+      // zoom (cubit dua jari / scroll) dan putar penari (geser satu jari / drag mouse); ketuk 2x = ulang
+      let zoom = 1, putar = 0, putarTarget = 0;
+      const ZOOM_MIN = 0.6, ZOOM_MAKS = 3;
+      const sentuh = new Map();
+      let jarakAwal = 0, zoomAwal = 1, xAwal = 0, putarAwal = 0, ketukTerakhir = 0;
+      const area = $("ar");
+      const jarak = () => { const [a, b] = [...sentuh.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+      area.addEventListener("pointerdown", (e) => {
+        try { area.setPointerCapture(e.pointerId); } catch { /* sebagian browser menolak; tidak wajib */ }
+        sentuh.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (sentuh.size === 2) { jarakAwal = jarak(); zoomAwal = zoom; }
+        if (sentuh.size === 1) {
+          xAwal = e.clientX; putarAwal = putarTarget;
+          const kini = performance.now();
+          if (kini - ketukTerakhir < 300) { zoom = 1; putarTarget = 0; }
+          ketukTerakhir = kini;
+        }
+      });
+      area.addEventListener("pointermove", (e) => {
+        if (!sentuh.has(e.pointerId)) return;
+        sentuh.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (sentuh.size === 2 && jarakAwal > 0) {
+          zoom = Math.min(ZOOM_MAKS, Math.max(ZOOM_MIN, zoomAwal * jarak() / jarakAwal));
+        } else if (sentuh.size === 1) {
+          putarTarget = putarAwal + (e.clientX - xAwal) / window.innerWidth * Math.PI * 2;
+        }
+      });
+      const lepas = (e) => {
+        sentuh.delete(e.pointerId);
+        if (sentuh.size < 2) jarakAwal = 0;
+        if (sentuh.size === 1) { const [p] = sentuh.values(); xAwal = p.x; putarAwal = putarTarget; }
+      };
+      area.addEventListener("pointerup", lepas);
+      area.addEventListener("pointercancel", lepas);
+      area.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        zoom = Math.min(ZOOM_MAKS, Math.max(ZOOM_MIN, zoom * Math.exp(-e.deltaY * 0.0015)));
+      }, { passive: false });
+      // cegah browser ikut zoom halaman saat dicubit
+      document.addEventListener("gesturestart", (e) => e.preventDefault());
+      document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+      let gesturDitunjukkan = false;
 
       let labelNyala = true;
       $("label").onclick = () => {
@@ -414,7 +498,16 @@
         }
       }
 
-      anchor.onTargetFound = () => { $("petunjuk").hidden = true; terlihat = true; };
+      anchor.onTargetFound = () => {
+        $("petunjuk").hidden = true;
+        terlihat = true;
+        if (!gesturDitunjukkan && panggung.visible) {
+          gesturDitunjukkan = true;
+          $("gestur").hidden = false;
+          setTimeout(() => { $("gestur").style.opacity = 0; }, 3500);
+          setTimeout(() => { $("gestur").hidden = true; }, 4200);
+        }
+      };
       anchor.onTargetLost = () => { $("petunjuk").hidden = false; terlihat = false; tampil = 0; $("info").hidden = true; };
 
       try {
@@ -442,7 +535,15 @@
         // muncul pelan: membesar dari 85% ke 100% dalam ~0.4 detik
         if (terlihat && tampil < 1) tampil = Math.min(1, tampil + dt / 0.4);
         const k = 0.85 + 0.15 * (1 - Math.pow(1 - tampil, 3));
-        panggung.scale.setScalar(k);
+        panggung.scale.setScalar(k * zoom);
+        putar += (putarTarget - putar) * Math.min(1, dt * 12); // putaran halus
+        if (penari) penari.rotation.y = putar;
+        panggung.updateMatrixWorld();
+        panggung.getWorldQuaternion(tmpQ);
+        panggung.getWorldPosition(tmpP);
+        tmpN.set(0, 1, 0).applyQuaternion(tmpQ);
+        lantai.n.value.copy(tmpN);
+        lantai.d.value = -tmpN.dot(tmpP);
         renderer.render(scene, camera);
         aturLabel();
       });

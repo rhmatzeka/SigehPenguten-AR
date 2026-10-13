@@ -17,6 +17,8 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 - **Penari 3D menari** di atas panggung setengah lingkaran bermotif tapis, gerakannya diambil dari video tari asli.
 - **Keterangan kostum**: label Nama Tarian, Siger, Kalung Papan Jajar, Tanggai, Bulu Serti, dan Kain Tapis.
   Garis penunjuknya ikut bergerak bersama penari, dan setiap label bisa diketuk untuk membaca penjelasannya.
+- **Zoom & putar**: cubit dua jari untuk zoom, geser satu jari untuk memutar penari, ketuk dua kali untuk
+  kembali semula (di laptop: scroll dan drag mouse).
 - **Dua mode**: poster di dinding/layar (penari berdiri tegak di depan poster) atau poster di meja
   (penari berdiri keluar dari kertas).
 - **Ringan**: model 3D sekitar 2 MB (kompresi Draco), jadi cepat dimuat di HP.
@@ -26,7 +28,8 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 1. Cetak [poster](poster/poster-tari-sigeh-qr.pdf), atau tampilkan di layar laptop.
 2. Pindai QR di pojok kanan bawah poster dengan kamera HP.
 3. Tekan **Mulai AR**, izinkan akses kamera, lalu arahkan kamera ke seluruh poster.
-4. Ketuk label untuk membaca keterangan. Tombol **Keterangan** menampilkan/menyembunyikan label,
+4. Cubit untuk zoom, geser untuk memutar penari, ketuk dua kali untuk kembali semula.
+5. Ketuk label untuk membaca keterangan. Tombol **Keterangan** menampilkan/menyembunyikan label,
    tombol **Poster di meja** mengganti mode saat poster diletakkan rata.
 
 ## Model 3D

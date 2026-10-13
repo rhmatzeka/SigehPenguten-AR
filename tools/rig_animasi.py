@@ -244,7 +244,9 @@ def rapikan_rok(obj, arm):
             continue
         # 80% bobot kaki pindah ke pinggul di atas, 48% setinggi lutut ke bawah
         t = min(1.0, max(0.0, (z_pinggul - v.co.z) / max(1e-6, z_pinggul - z_lutut)))
-        pindah = (1 - 0.4 * t) * 0.8
+        # rok jatuh dari pinggul (tidak ikut betis yang terlipat saat bersimpuh); yang tembus lantai
+        # digerai rata di lantai oleh shader web (index.html, "rok tergerai")
+        pindah = (1 - 0.13 * t) * 0.92
         for n in kaki:
             if n in w:
                 vg[n].add([v.index], w[n] * (1 - pindah), "REPLACE")
@@ -386,30 +388,26 @@ def pasang_gerak(arm, J_rest):
 
 
 def tempel_lantai(arm, obj):
-    """Tiap frame: geser seluruh rig supaya titik terendah mesh (ujung rok/kaki/lutut) tepat di lantai z=0."""
+    """Tiap frame: geser seluruh rig supaya lutut/pergelangan/ujung kaki terendah tepat di lantai z=0.
+    Patokannya tulang, bukan ujung rok: rok yang tembus lantai digerai rata oleh shader web."""
     sc = bpy.context.scene
-    n = len(obj.data.vertices)
-    idx = np.arange(0, n, 7)
+    pb = arm.pose.bones
+    # (tulang, ujung, tebal): tebal = jarak permukaan kulit/kain ke sendi
+    titik = [("shin.L", "head", 0.014), ("shin.R", "head", 0.014),
+             ("foot.L", "head", 0.02), ("foot.R", "head", 0.02),
+             ("foot.L", "tail", 0.006), ("foot.R", "tail", 0.006)]
     terendah = []
     for f in range(sc.frame_start, sc.frame_end + 1):
         sc.frame_set(f)
-        dg = bpy.context.evaluated_depsgraph_get()
-        ev = obj.evaluated_get(dg)
-        me = ev.to_mesh()
-        m = len(me.vertices)
-        co = np.empty(m * 3)
-        me.vertices.foreach_get("co", co)
-        ev.to_mesh_clear()
-        z = co.reshape(-1, 3)[idx[idx < m], 2]
-        terendah.append(float(np.percentile(z, 0.3)))  # abaikan 0.3% titik paling bawah (serpihan)
+        mw = arm.matrix_world
+        terendah.append(min((mw @ getattr(pb[t], u)).z - tebal for t, u, tebal in titik))
     t = np.array(terendah)
-    # haluskan sedikit supaya tidak bergetar, tapi tetap mengikuti saat berlutut
     k = np.exp(-0.5 * (np.arange(-6, 7) / 2.5) ** 2); k /= k.sum()
     t = np.convolve(np.pad(t, 6, mode="edge"), k, mode="valid")
     for i, f in enumerate(range(sc.frame_start, sc.frame_end + 1)):
         arm.location.z = -t[i]
         arm.keyframe_insert("location", index=2, frame=f)
-    print(f"tempel lantai: koreksi {t.min():.3f}..{t.max():.3f}")
+    print(f"tempel lantai (tulang): koreksi {t.min():.3f}..{t.max():.3f}")
 
 
 def main():

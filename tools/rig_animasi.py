@@ -261,6 +261,17 @@ def frame_orient(x, atas):
     return Matrix((x, y, z)).transposed()
 
 
+def batasi_miring(v, maks_derajat):
+    """Putar vektor `v` mendekati sumbu atas bila kemiringannya melebihi `maks_derajat`."""
+    atas = Vector((0, 0, 1))
+    sudut = v.angle(atas)
+    batas = math.radians(maks_derajat)
+    if sudut <= batas:
+        return v
+    poros = atas.cross(v).normalized()
+    return Matrix.Rotation(batas, 3, poros) @ atas * v.length
+
+
 def pasang_gerak(arm, J_rest):
     d = np.load(GERAK)
     pos = d["pos"]
@@ -323,8 +334,10 @@ def pasang_gerak(arm, J_rest):
         sh = tengah(P[SH_L], P[SH_R])
         ear = tengah(P[EAR_L], P[EAR_R])
         F_now = {
-            "hips": frame_orient(P[HP_L] - P[HP_R], sh - hp),
-            "chest": frame_orient(P[SH_L] - P[SH_R], sh - hp),
+            # panggul tetap tegak (hanya menoleh): duduk bersimpuh tidak memiringkan panggul,
+            # bungkukan (sembah) cukup di badan atas, dibatasi 45 derajat supaya tidak rebah
+            "hips": frame_orient(P[HP_L] - P[HP_R], Vector((0, 0, 1))),
+            "chest": frame_orient(P[SH_L] - P[SH_R], batasi_miring(sh - hp, 45)),
             "head": frame_orient(P[EAR_L] - P[EAR_R], (ear - P[NOSE]).cross(P[EAR_L] - P[EAR_R]) * -1),
         }
         M = {}  # matriks pose ruang armature

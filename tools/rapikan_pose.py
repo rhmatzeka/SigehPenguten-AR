@@ -42,8 +42,8 @@ def main(src, out, awal=None, akhir=None):
     b = int(float(akhir) * fps) if akhir else len(w)
     w = isi_kosong(w[a:b])
 
-    # haluskan getaran (sigma ~0.07 dtk)
-    w = haluskan(w, fps * 0.07)
+    # haluskan getaran (sigma ~0.1 dtk)
+    w = haluskan(w, fps * 0.1)
 
     blender = np.stack([w[..., 0], w[..., 2], -w[..., 1]], axis=-1)
 

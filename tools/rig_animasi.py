@@ -224,9 +224,9 @@ def rapikan_rok(obj, arm):
         w_kaki = sum(w.get(n, 0) for n in kaki)
         if w_kaki <= 0:
             continue
-        # 0 di pinggul -> 0.5 di lutut ke bawah: setengah bobot kaki dipindah ke pinggul
+        # 80% bobot kaki pindah ke pinggul di atas, 48% setinggi lutut ke bawah
         t = min(1.0, max(0.0, (z_pinggul - v.co.z) / max(1e-6, z_pinggul - z_lutut)))
-        pindah = (1 - 0.5 * t) * 0.6
+        pindah = (1 - 0.4 * t) * 0.8
         for n in kaki:
             if n in w:
                 vg[n].add([v.index], w[n] * (1 - pindah), "REPLACE")

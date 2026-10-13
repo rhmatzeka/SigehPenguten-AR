@@ -12,11 +12,16 @@ import json
 import math
 import sys
 
+import os
+
 import bmesh
 import bpy
 import numpy as np
 from mathutils import Matrix, Quaternion, Vector
 from mathutils.kdtree import KDTree
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from tangan import ganti_tangan  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 SRC, POSE_JSON, GERAK, OUT = argv[:4]
@@ -155,7 +160,7 @@ def buat_armature(daftar):
     return arm
 
 
-def pasang_bobot(obj, arm):
+def pasang_bobot(obj, arm, J):
     # proxy rapat (watertight) supaya bone heat tidak gagal
     proxy = obj.copy()
     proxy.data = obj.data.copy()
@@ -197,6 +202,9 @@ def pasang_bobot(obj, arm):
 
     isi_bobot_kosong(obj)
     rapikan_rok(obj, arm)
+    # tangan hasil generator cacat (jari menyatu) -> ganti tangan buatan dengan tanggai emas
+    kulit = tuple(c ** 2.2 for c in (0.88, 0.70, 0.62))  # sRGB -> linear
+    ganti_tangan(obj, arm, J, (IX_L, IX_R), (PK_L, PK_R), kulit)
 
     obj.parent = arm
     mod = obj.modifiers.new("Armature", "ARMATURE")
@@ -343,6 +351,9 @@ def pasang_gerak(arm, J_rest):
                 arah = b(P) - a(P)
                 y_bawa = R_bawa.col[1]
                 R = y_bawa.rotation_difference(arah.normalized()).to_matrix() @ R_bawa
+                if nama.startswith("hand."):
+                    # titik jari MediaPipe di video kecil & berisik: redam putaran pergelangan
+                    R = R_bawa.to_quaternion().slerp(R.to_quaternion(), 0.6).to_matrix()
             lokasi = bawa.translation
             if nama == "hips":
                 lokasi = Vector((hip_rest.x, hip_rest.y, hp.z * skala))
@@ -366,7 +377,7 @@ def main():
     J = sendi_dari_foto(obj)
     daftar = struktur_tulang(J)
     arm = buat_armature(daftar)
-    pasang_bobot(obj, arm)
+    pasang_bobot(obj, arm, J)
     pasang_gerak(arm, J)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_animations=True,

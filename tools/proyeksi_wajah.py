@@ -114,7 +114,9 @@ L.new(comb.outputs[0], t_foto.inputs[0])
 # masker: jarak (x,z) ke hidung -> 1 di dalam 0.55R, 0 di luar R; dikali seberapa menghadap depan
 dx = math("SUBTRACT", sep.outputs["X"], hx)
 dz = math("SUBTRACT", sep.outputs["Z"], hz)
-jarak = math("SQRT", math("ADD", math("MULTIPLY", dx, dx), math("MULTIPLY", dz, dz)))
+# elips: lebih sempit ke samping supaya anting/telinga tidak ikut berwarna kulit
+dxe = math("DIVIDE", dx, 0.72)
+jarak = math("SQRT", math("ADD", math("MULTIPLY", dxe, dxe), math("MULTIPLY", dz, dz)))
 mr = n.new("ShaderNodeMapRange")
 L.new(jarak, mr.inputs["Value"])
 mr.inputs["From Min"].default_value = 0.55 * R
@@ -146,7 +148,8 @@ if MASKER:
     t_mask.image.colorspace_settings.name = "Non-Color"; t_mask.extension = "EXTEND"
     L.new(comb.outputs[0], t_mask.inputs[0])
     badan = math("MULTIPLY", badan, t_mask.outputs["Color"])
-wajah = math("MULTIPLY", math("MULTIPLY", mr.outputs[0], hadap.outputs[0]), lihat.outputs["Fac"])
+# wajah tidak memakai cek oklusi: ujung siger di model sering menjorok di depan dahi padahal di foto tidak
+wajah = math("MULTIPLY", mr.outputs[0], hadap.outputs[0])
 masker = math("MAXIMUM", wajah, badan)
 mix = n.new("ShaderNodeMix"); mix.data_type = "RGBA"
 L.new(masker, mix.inputs["Factor"])

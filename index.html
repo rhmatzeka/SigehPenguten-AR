@@ -197,8 +197,8 @@
       });
       const { renderer, scene, camera } = mindar;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.05;
+      renderer.toneMapping = THREE.AgXToneMapping;
+      renderer.toneMappingExposure = 1.1;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       const pmrem = new THREE.PMREMGenerator(renderer);
       scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -231,10 +231,20 @@
         model.traverse((o) => {
           if (!o.isMesh) return;
           o.frustumCulled = false; // mesh beranimasi bisa keluar dari kotak batas aslinya
-          o.material.metalness = 0;
-          o.material.roughness = 0.75;
-          o.material.envMapIntensity = 0.6;
-          if (o.material.map) o.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          const m = o.material;
+          if (m.map) {
+            // tekstur dari foto sudah berisi cahaya asli: kurangi efek logam & beri sedikit cahaya diri
+            // supaya kulit dan kain tetap seperti foto, tidak abu-abu
+            m.metalness = 0;
+            m.roughness = 0.8;
+            m.envMapIntensity = 0.5;
+            m.emissive = new THREE.Color(0xffffff);
+            m.emissiveMap = m.map;
+            m.emissiveIntensity = 0.35;
+            m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          } else if (m.metalness > 0.5) {
+            m.envMapIntensity = 1.2; // kuku tanggai emas berkilau
+          }
         });
         model.scale.setScalar(SKALA);
         panggung.add(model);

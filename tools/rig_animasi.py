@@ -20,7 +20,8 @@ from mathutils.kdtree import KDTree
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 SRC, POSE_JSON, GERAK, OUT = argv[:4]
-MAKS_FRAME = int(argv[4]) if len(argv) > 4 else None
+MAKS_FRAME = int(argv[4]) if len(argv) > 4 and argv[4] != "-" else None
+MAKS_SEGITIGA = 70000
 
 # indeks landmark MediaPipe
 NOSE, EAR_L, EAR_R = 0, 7, 8
@@ -56,6 +57,15 @@ def siapkan_model():
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
     bm.to_mesh(obj.data)
     bm.free()
+    # warna titik bawaan generator & atribut bantu proyeksi tidak dipakai di web, hanya menambah ukuran
+    for nama in [a.name for a in obj.data.color_attributes]:
+        obj.data.color_attributes.remove(obj.data.color_attributes[nama])
+    # model detail (TRELLIS.2 ~200rb segitiga) dikecilkan supaya ringan di HP
+    if len(obj.data.polygons) > MAKS_SEGITIGA:
+        dec = obj.modifiers.new("dec", "DECIMATE")
+        dec.ratio = MAKS_SEGITIGA / len(obj.data.polygons)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(modifier="dec")
     for p in obj.data.polygons:
         p.use_smooth = True
     if hasattr(obj.data, "set_sharp_from_angle"):
@@ -361,7 +371,10 @@ def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_animations=True,
                               export_force_sampling=True, export_optimize_animation_size=True,
-                              export_frame_step=2, export_image_format="JPEG", export_jpeg_quality=85)
+                              export_frame_step=2, export_image_format="JPEG", export_jpeg_quality=85,
+                              export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7,
+                              export_draco_position_quantization=14, export_draco_normal_quantization=10,
+                              export_draco_texcoord_quantization=12)
     print("tersimpan", OUT)
 
 

@@ -77,6 +77,7 @@
   <script type="module">
     import * as THREE from "three";
     import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
     import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
     import { MindARThree } from "mindar-image-three";
 
@@ -85,7 +86,7 @@
     // Koordinat target MindAR: lebar poster = 1, pusat di tengah, tinggi 1.126 (2274x2560).
     // Bingkai foto di poster (piksel 768,602 - 1588,1483): x -0.162..0.198, y -0.089..0.298.
     const FOTO = { x: 0.018, y: 0.1044, w: 0.3606, h: 0.3874 };
-    const SKALA = 0.46;
+    const SKALA = 0.43;
     const POSISI = {
       // poster tegak/layar: penari berdiri di lantai panggung dalam bingkai foto, sedikit keluar
       dinding: { pos: [FOTO.x, FOTO.y - FOTO.h / 2 + 0.035, 0.03], rot: [0, 0, 0] },
@@ -221,7 +222,8 @@
       let tampil = 0;      // 0..1 untuk efek muncul
       let terlihat = false;
       $("muat").hidden = false;
-      const muatModel = new GLTFLoader().loadAsync("assets/penari.glb", (e) => {
+      const draco = new DRACOLoader().setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/");
+      const muatModel = new GLTFLoader().setDRACOLoader(draco).loadAsync("assets/penari.glb", (e) => {
         // GitHub Pages mengompres file, jadi total bisa lebih kecil dari yang terunduh
         if (e.total) $("persen").textContent = Math.min(99, Math.round((e.loaded / e.total) * 100));
       }).then((gltf) => {

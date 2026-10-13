@@ -9,6 +9,7 @@ Pakai: blender -b -P tools/rig_animasi.py -- <model.glb> <pose-input.json> <gera
 - Gerakan: tiap tulang diputar supaya arahnya sama dengan arah ruas di data mocap.
 """
 import json
+import math
 import sys
 
 import bmesh
@@ -49,6 +50,16 @@ def siapkan_model():
     geser = Vector((-(vs[:, 0].min() + vs[:, 0].max()) / 2, -(vs[:, 1].min() + vs[:, 1].max()) / 2, -vs[:, 2].min()))
     obj.data.transform(Matrix.Translation(geser))
     obj.name = "Penari"
+    # glTF memecah titik di sambungan UV -> satukan lagi lalu haluskan normal supaya tidak bersegi-segi
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.to_mesh(obj.data)
+    bm.free()
+    for p in obj.data.polygons:
+        p.use_smooth = True
+    if hasattr(obj.data, "set_sharp_from_angle"):
+        obj.data.set_sharp_from_angle(angle=math.radians(50))
     # glTF tanpa metallicFactor dianggap logam penuh (gelap); jadikan kain/kulit biasa
     for mat in obj.data.materials:
         if mat and mat.use_nodes:

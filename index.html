@@ -2,36 +2,188 @@
 <html lang="id">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Tari Sigeh Penguten AR</title>
+  <meta name="description" content="Arahkan kamera ke poster untuk melihat penari Tari Sigeh Penguten dalam 3D.">
   <style>
-    :root { --bg: #f8d7b0; --card: #fdf6dc; --ink: #2b1a0a; --accent: #b8862f; }
+    :root { --bg: #f8d7b0; --card: #fdf6dc; --ink: #2b1a0a; --muted: #6b5233; --accent: #b8862f; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; display: grid; place-items: center;
-      background: var(--bg); color: var(--ink);
-      font-family: Georgia, "Times New Roman", serif; padding: 16px;
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--ink); }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    #ar { position: fixed; inset: 0; }
+    .layar {
+      position: fixed; inset: 0; display: grid; place-items: center; padding: 16px;
+      background: var(--bg); z-index: 10;
     }
-    main {
-      background: var(--card); border-radius: 24px; padding: 32px 24px;
-      max-width: 420px; width: 100%; text-align: center;
-      box-shadow: 0 8px 24px rgba(43, 26, 10, .12);
+    .kartu {
+      background: var(--card); border-radius: 24px; padding: 28px 22px; max-width: 420px; width: 100%;
+      text-align: center; box-shadow: 0 8px 24px rgba(43, 26, 10, .12);
     }
-    h1 { margin: 0 0 4px; font-size: 2rem; }
-    .sub { margin: 0 0 24px; font-family: system-ui, sans-serif; font-weight: 600; font-size: .95rem; }
-    .badge {
-      display: inline-block; background: var(--bg); border-radius: 999px;
-      padding: 10px 20px; font-size: 1rem;
+    h1 { font-family: Georgia, "Times New Roman", serif; margin: 0 0 4px; font-size: 1.9rem; line-height: 1.15; }
+    .sub { margin: 0 0 20px; font-weight: 600; font-size: .95rem; }
+    ol { text-align: left; margin: 0 0 22px; padding-left: 1.3em; line-height: 1.55; color: var(--muted); }
+    button {
+      font: inherit; font-weight: 700; border: 0; border-radius: 999px; cursor: pointer;
+      background: var(--ink); color: var(--card); padding: 14px 28px; font-size: 1.05rem;
     }
-    .hint { margin-top: 20px; font-family: system-ui, sans-serif; font-size: .85rem; color: #6b5233; }
+    button:disabled { opacity: .5; cursor: progress; }
+    .kecil { margin-top: 14px; font-size: .8rem; color: var(--muted); }
+    .galat { color: #9b1c1c; font-weight: 600; margin-top: 14px; }
+    #petunjuk, #muat {
+      position: fixed; left: 50%; transform: translateX(-50%); z-index: 5;
+      background: rgba(253, 246, 220, .92); border-radius: 999px; padding: 10px 18px;
+      font-weight: 600; font-size: .95rem; white-space: nowrap; pointer-events: none;
+    }
+    #petunjuk { bottom: calc(88px + env(safe-area-inset-bottom)); }
+    #muat { top: calc(16px + env(safe-area-inset-top)); }
+    #mode {
+      position: fixed; z-index: 5; bottom: calc(24px + env(safe-area-inset-bottom)); left: 50%;
+      transform: translateX(-50%); background: rgba(43, 26, 10, .85); padding: 12px 20px; font-size: .9rem;
+    }
+    [hidden] { display: none !important; }
   </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+        "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+      }
+    }
+  </script>
 </head>
 <body>
-  <main>
-    <h1>Tari Sigeh Penguten</h1>
-    <p class="sub">Tarian Tradisional Provinsi Lampung</p>
-    <span class="badge">Penari AR sedang disiapkan</span>
-    <p class="hint">Halaman ini akan menampilkan penari 3D di atas poster. Silakan coba lagi nanti.</p>
-  </main>
+  <div id="ar"></div>
+
+  <section class="layar" id="awal">
+    <div class="kartu">
+      <h1>Tari Sigeh Penguten</h1>
+      <p class="sub">Tarian Tradisional Provinsi Lampung</p>
+      <ol>
+        <li>Tekan <b>Mulai AR</b> lalu izinkan kamera.</li>
+        <li>Arahkan kamera ke poster sampai seluruh poster terlihat.</li>
+        <li>Penari akan muncul dan menari di atas poster.</li>
+      </ol>
+      <button id="mulai">Mulai AR</button>
+      <p class="galat" id="galat" hidden></p>
+      <p class="kecil">Gunakan Chrome (Android) atau Safari (iPhone).</p>
+    </div>
+  </section>
+
+  <div id="muat" hidden>Memuat penari… <span id="persen">0</span>%</div>
+  <div id="petunjuk" hidden>Arahkan kamera ke poster</div>
+  <button id="mode" hidden>Poster di meja</button>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { MindARThree } from "mindar-image-three";
+
+    const $ = (id) => document.getElementById(id);
+
+    // Letak foto di poster (koordinat target MindAR: lebar poster = 1, pusat di tengah).
+    // Rasio poster 2274x2560 -> tinggi 1.126. Foto penari: bawah y≈-0.11, tengah x≈0.
+    const SKALA = 0.52;
+    const POSISI = {
+      dinding: { pos: [0, -0.12, 0.06], rot: [0, 0, 0] },        // penari berdiri tegak di depan foto
+      meja: { pos: [0, -0.05, 0], rot: [Math.PI / 2, 0, 0] },     // penari berdiri keluar dari kertas
+    };
+    let mode = "dinding";
+
+    function aturMode(model) {
+      const p = POSISI[mode];
+      model.position.set(...p.pos);
+      model.rotation.set(...p.rot);
+      $("mode").textContent = mode === "dinding" ? "Poster di meja" : "Poster di dinding";
+    }
+
+    function galat(pesan) {
+      $("awal").hidden = false;
+      $("muat").hidden = true;
+      $("petunjuk").hidden = true;
+      $("mode").hidden = true;
+      $("galat").textContent = pesan;
+      $("galat").hidden = false;
+      $("mulai").disabled = false;
+    }
+
+    async function mulai() {
+      $("mulai").disabled = true;
+      $("galat").hidden = true;
+      if (!navigator.mediaDevices?.getUserMedia) {
+        galat("Browser ini tidak mendukung kamera. Buka link di Chrome atau Safari.");
+        return;
+      }
+
+      const mindar = new MindARThree({
+        container: $("ar"),
+        imageTargetSrc: "assets/poster.mind",
+        uiLoading: "no", uiScanning: "no", uiError: "no",
+        filterMinCF: 0.0001, filterBeta: 0.001,
+      });
+      const { renderer, scene, camera } = mindar;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x8a6a4a, 2.2));
+      const matahari = new THREE.DirectionalLight(0xffffff, 1.6);
+      matahari.position.set(0.5, 1, 1.5);
+      scene.add(matahari);
+
+      const anchor = mindar.addAnchor(0);
+      const wadah = new THREE.Group();
+      wadah.visible = false;
+      anchor.group.add(wadah);
+
+      let mixer = null;
+      $("muat").hidden = false;
+      const muatModel = new GLTFLoader().loadAsync("assets/penari.glb", (e) => {
+        if (e.total) $("persen").textContent = Math.round((e.loaded / e.total) * 100);
+      }).then((gltf) => {
+        const model = gltf.scene;
+        model.traverse((o) => {
+          if (!o.isMesh) return;
+          o.frustumCulled = false; // mesh beranimasi bisa keluar dari kotak batas aslinya
+          o.material.metalness = 0;
+          o.material.roughness = 0.8;
+        });
+        model.scale.setScalar(SKALA);
+        wadah.add(model);
+        aturMode(model);
+        $("mode").onclick = () => { mode = mode === "dinding" ? "meja" : "dinding"; aturMode(model); };
+        mixer = new THREE.AnimationMixer(model);
+        mixer.clipAction(gltf.animations[0]).play();
+        $("muat").hidden = true;
+        wadah.visible = true;
+      });
+
+      anchor.onTargetFound = () => { $("petunjuk").hidden = true; };
+      anchor.onTargetLost = () => { $("petunjuk").hidden = false; };
+
+      try {
+        await mindar.start();
+      } catch (e) {
+        console.error(e);
+        galat("Kamera tidak bisa dibuka. Izinkan akses kamera di pengaturan browser, lalu coba lagi.");
+        return;
+      }
+      $("awal").hidden = true;
+      $("petunjuk").hidden = false;
+      $("mode").hidden = false;
+
+      try {
+        await muatModel;
+      } catch (e) {
+        console.error(e);
+        $("muat").textContent = "Gagal memuat penari. Periksa internet lalu muat ulang halaman.";
+      }
+
+      const jam = new THREE.Clock();
+      renderer.setAnimationLoop(() => {
+        if (mixer) mixer.update(jam.getDelta());
+        renderer.render(scene, camera);
+      });
+    }
+
+    $("mulai").addEventListener("click", mulai);
+  </script>
 </body>
 </html>

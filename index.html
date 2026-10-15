@@ -111,6 +111,7 @@
   <div id="alat" hidden>
     <button id="label" aria-pressed="true">Keterangan</button>
     <button id="mode">Poster di meja</button>
+    <button id="musik" aria-pressed="true">Musik</button>
   </div>
   <section id="info" hidden role="dialog" aria-live="polite">
     <button id="tutup" aria-label="Tutup">✕</button>
@@ -288,10 +289,28 @@
       $("mulai").textContent = "Mulai AR";
     }
 
+    let musik = null, musikNyala = true, terlihatPoster = false;
+    function aturMusik() {
+      if (!musik) return;
+      if (musikNyala && terlihatPoster) musik.play().catch(() => {});
+      else musik.pause();
+    }
+    $("musik").addEventListener("click", () => {
+      musikNyala = !musikNyala;
+      $("musik").setAttribute("aria-pressed", String(musikNyala));
+      aturMusik();
+    });
+
     async function mulai() {
       $("mulai").disabled = true;
       $("mulai").textContent = "Menyiapkan kamera…";
       $("galat").hidden = true;
+      // musik pengiring: harus mulai di dalam ketukan tombol supaya HP (terutama iPhone) mengizinkan suara
+      if (!musik) {
+        musik = new Audio("assets/musik.mp3");
+        musik.loop = true;
+        musik.play().then(() => { if (!terlihatPoster) musik.pause(); }).catch(() => {});
+      }
       if (!navigator.mediaDevices?.getUserMedia) {
         galat("Browser ini tidak mendukung kamera. Buka link di Chrome atau Safari.");
         return;
@@ -501,6 +520,8 @@
       anchor.onTargetFound = () => {
         $("petunjuk").hidden = true;
         terlihat = true;
+        terlihatPoster = true;
+        aturMusik();
         if (!gesturDitunjukkan && panggung.visible) {
           gesturDitunjukkan = true;
           $("gestur").hidden = false;
@@ -508,7 +529,11 @@
           setTimeout(() => { $("gestur").hidden = true; }, 4200);
         }
       };
-      anchor.onTargetLost = () => { $("petunjuk").hidden = false; terlihat = false; tampil = 0; $("info").hidden = true; };
+      anchor.onTargetLost = () => {
+        $("petunjuk").hidden = false; terlihat = false; tampil = 0; $("info").hidden = true;
+        terlihatPoster = false;
+        aturMusik();
+      };
 
       try {
         await mindar.start();

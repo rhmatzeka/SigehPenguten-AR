@@ -8,7 +8,7 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 (buka di HP, lalu arahkan kamera ke [poster](poster/poster-tari-sigeh-qr.png))
 
 <p align="center">
-  <img src="docs/gambar/pratinjau-ar.jpg" alt="Penari 3D muncul di atas poster dengan label keterangan" width="640">
+  <img src="docs/gambar/pratinjau-ar.jpg" alt="Penari 3D muncul di atas poster dengan label keterangan" width="320">
 </p>
 
 ## Fitur
@@ -17,6 +17,8 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 - **Penari 3D menari** di atas panggung setengah lingkaran bermotif tapis, gerakannya diambil dari video tari asli.
 - **Keterangan kostum**: label Nama Tarian, Siger, Kalung Papan Jajar, Tanggai, Bulu Serti, dan Kain Tapis.
   Garis penunjuknya ikut bergerak bersama penari, dan setiap label bisa diketuk untuk membaca penjelasannya.
+- **Musik pengiring**: musik tari otomatis diputar saat poster terlihat dan berhenti saat kamera menjauh.
+  Tombol **Musik** untuk mematikan/menyalakan.
 - **Zoom & putar**: cubit dua jari untuk zoom, geser satu jari untuk memutar penari, ketuk dua kali untuk
   kembali semula (di laptop: scroll dan drag mouse).
 - **Dua mode**: poster di dinding/layar (penari berdiri tegak di depan poster) atau poster di meja
@@ -30,7 +32,7 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 3. Tekan **Mulai AR**, izinkan akses kamera, lalu arahkan kamera ke seluruh poster.
 4. Cubit untuk zoom, geser untuk memutar penari, ketuk dua kali untuk kembali semula.
 5. Ketuk label untuk membaca keterangan. Tombol **Keterangan** menampilkan/menyembunyikan label,
-   tombol **Poster di meja** mengganti mode saat poster diletakkan rata.
+   tombol **Poster di meja** mengganti mode saat poster diletakkan rata, tombol **Musik** mematikan/menyalakan musik.
 
 ## Model 3D
 
@@ -63,6 +65,8 @@ Semua langkah dijalankan dengan skrip di folder [`tools/`](tools/):
 4. **Rigging + animasi**: `rig_animasi.py` memasang 19 tulang otomatis dari titik tubuh di foto, membagi bobot
    kulit (rok dibuat ikut pinggul supaya tidak terbelah), mengganti tangan dengan tangan buatan berkuku
    tanggai emas (`tangan.py`), memasang gerakan dari video, lalu mengekspor GLB terkompresi.
+   Karena di gambar penari satu tangan menyentuh siger dan tangan lain di depan dada, bobot lengan dipisahkan dari
+   kepala/badan (bagian emas siger dikenali dari warnanya) dan segitiga penghubung lengan-badan dipotong supaya tidak melar.
 5. **Target pindai**: poster ber-QR dibuat dengan `tempel_qr.py`, lalu dikompilasi menjadi `assets/poster.mind`
    dengan compiler MindAR.
 
@@ -72,6 +76,7 @@ Semua langkah dijalankan dengan skrip di folder [`tools/`](tools/):
 index.html            halaman AR (MindAR + Three.js, label keterangan, panggung 3D)
 assets/penari.glb     model penari beranimasi (Draco)
 assets/poster.mind    target pindai MindAR dari poster
+assets/musik.mp3      musik pengiring
 poster/               poster siap cetak (PNG & PDF) dengan QR
 qr/                   file QR (PNG & SVG)
 tools/                skrip pembuatan model, tekstur, mocap, dan rigging

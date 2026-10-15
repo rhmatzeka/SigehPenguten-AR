@@ -12,9 +12,15 @@ import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
 render_p, foto_p, pose_task, face_task, out_p = sys.argv[1:6]
-ren = cv2.imread(render_p, cv2.IMREAD_UNCHANGED)
-alpha = ren[:, :, 3:4] / 255.0
-ren = (ren[:, :, :3] * alpha + 255 * (1 - alpha)).astype(np.uint8)  # latar putih
+ren_rgba = cv2.imread(render_p, cv2.IMREAD_UNCHANGED)
+alpha = ren_rgba[:, :, 3:4] / 255.0
+
+
+def latar(nilai):
+    return (ren_rgba[:, :, :3] * alpha + nilai * (1 - alpha)).astype(np.uint8)
+
+
+ren = latar(255)  # latar putih
 foto = cv2.imread(foto_p)
 H, W = foto.shape[:2]
 
@@ -27,6 +33,8 @@ def titik_pose(img):
     o = vision.PoseLandmarkerOptions(base_options=BaseOptions(model_asset_path=pose_task), running_mode=vision.RunningMode.IMAGE)
     with vision.PoseLandmarker.create_from_options(o) as d:
         r = d.detect(mpimg(img))
+    if not r.pose_landmarks:
+        return None
     return np.array([[p.x * W, p.y * H, p.visibility] for p in r.pose_landmarks[0]])
 
 
@@ -44,13 +52,22 @@ def titik_wajah(img, pusat, r):
 
 
 pr, pf = titik_pose(ren), titik_pose(foto)
-idx = [11, 12, 13, 14, 15, 16, 23, 24]
-ok = [i for i in idx if pr[i, 2] > 0.5 and pf[i, 2] > 0.5]
-M1, _ = cv2.estimateAffinePartial2D(pr[ok, :2], pf[ok, :2])  # render -> foto
-galat1 = np.linalg.norm(pr[ok, :2] @ M1[:, :2].T + M1[:, 2] - pf[ok, :2], axis=1)
-print(f"badan: {len(ok)} titik, galat sisa median {np.median(galat1):.1f}px, M={M1.round(3).tolist()}")
-# foto_sejajar(x) = foto(M1 * x)
-foto1 = cv2.warpAffine(foto, M1, (W, H), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP, borderMode=cv2.BORDER_REPLICATE)
+if pr is None:
+    # render bergaya kartun kadang tak terbaca di latar putih; coba latar abu-abu seperti foto studio
+    ren = latar(170)
+    pr = titik_pose(ren)
+if pr is None:
+    # foto_tajam.py sudah menyejajarkan badan; lanjut ke penyejajaran wajah saja
+    print("badan: pose render tidak terdeteksi - pakai foto tajam apa adanya")
+    pr, foto1 = pf, foto
+else:
+    idx = [11, 12, 13, 14, 15, 16, 23, 24]
+    ok = [i for i in idx if pr[i, 2] > 0.5 and pf[i, 2] > 0.5]
+    M1, _ = cv2.estimateAffinePartial2D(pr[ok, :2], pf[ok, :2])  # render -> foto
+    galat1 = np.linalg.norm(pr[ok, :2] @ M1[:, :2].T + M1[:, 2] - pf[ok, :2], axis=1)
+    print(f"badan: {len(ok)} titik, galat sisa median {np.median(galat1):.1f}px, M={M1.round(3).tolist()}")
+    # foto_sejajar(x) = foto(M1 * x)
+    foto1 = cv2.warpAffine(foto, M1, (W, H), flags=cv2.INTER_CUBIC | cv2.WARP_INVERSE_MAP, borderMode=cv2.BORDER_REPLICATE)
 
 hidung = pr[0, :2]
 r = abs(pr[7, 0] - pr[8, 0]) * 1.4

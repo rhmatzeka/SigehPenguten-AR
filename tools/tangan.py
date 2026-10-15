@@ -134,8 +134,11 @@ def ganti_tangan(obj, arm, J, IX, PK, warna_kulit):
         bm.from_mesh(obj.data)
         bm.verts.ensure_lookup_table()
         bmesh.ops.delete(bm, geom=[bm.verts[i] for i in hapus], context="VERTS")
-        # pergelangan sebenarnya = tepi bolong bekas potongan di ujung lengan model
-        tepi = {v for e in bm.edges if e.is_boundary for v in e.verts if (v.co - W).length < 3.0 * Lp}
+        # pergelangan sebenarnya = tepi bolong bekas potongan di ujung lengan model (hanya tepi milik lengan ini,
+        # bukan tepi bekas potongan siger/badan yang tersentuh tangan, lihat putus_jembatan di rig_animasi.py)
+        dl = bm.verts.layers.deform.active
+        tepi = {v for e in bm.edges if e.is_boundary for v in e.verts if (v.co - W).length < 3.0 * Lp
+                and (dl is None or sum(w for g, w in v[dl].items() if g in milik) >= 0.5)}
         if len(tepi) >= 6:
             C = sum((v.co for v in tepi), Vector()) / len(tepi)
             jari_wrist = sum(((v.co - C) - arah_lengan * (v.co - C).dot(arah_lengan)).length for v in tepi) / len(tepi)

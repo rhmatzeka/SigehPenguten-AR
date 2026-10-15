@@ -33,6 +33,13 @@ NOSE, EAR_L, EAR_R = 0, 7, 8
 SH_L, SH_R, EL_L, EL_R, WR_L, WR_R = 11, 12, 13, 14, 15, 16
 PK_L, PK_R, IX_L, IX_R = 17, 18, 19, 20
 HP_L, HP_R, KN_L, KN_R, AN_L, AN_R, FT_L, FT_R = 23, 24, 25, 26, 27, 28, 31, 32
+LENGAN_UJUNG = {EL_L, EL_R, WR_L, WR_R, PK_L, PK_R, IX_L, IX_R}
+JARI_LENGAN = 0.028        # perkiraan jari-jari lengan berlengan renda (model setinggi ~1)
+TEBAL_LENGAN_MAKS = 0.08   # irisan lebih tebal dari ini berarti lengan menempel badan/siger
+# titik yang lebih jauh dari ruas lengan daripada ini tidak boleh ikut lengan (siger/dada yang tersentuh tangan)
+LENGAN_R0, LENGAN_R1 = 0.06, 0.085
+LENGAN_BELAKANG = 0.03     # titik sejauh ini di belakang lengan yang menempel di depan badan = badan
+GELANG_R = 0.035           # gelang emas di pergelangan tetap ikut lengan
 
 
 def siapkan_model():
@@ -96,15 +103,26 @@ def sendi_dari_foto(obj):
     cx = (x0 + x1) / 2
     xz = np.stack([(lm[:, 0] - cx) * s, (y1 - lm[:, 1]) * s], axis=1)
 
-    def kedalaman(x, z, depan=False, r=0.03):
+    def kedalaman(i, x, z, r=0.03):
         m = (np.abs(vs[:, 0] - x) < r) & (np.abs(vs[:, 2] - z) < r)
         if m.sum() < 5:
             return 0.0
         y = vs[m, 1]
-        return float(y.min()) if depan else float((y.min() + y.max()) / 2)
+        if i == NOSE:
+            return float(y.min())
+        # lengan bawah/tangan di depan badan: irisan ikut menembus badan di belakangnya,
+        # jadi sendi ditaruh sedikit di belakang permukaan depan (bukan di tengah badan)
+        if i in LENGAN_UJUNG and y.max() - y.min() > TEBAL_LENGAN_MAKS:
+            menempel.add(i)
+            return float(y.min()) + JARI_LENGAN
+        return float((y.min() + y.max()) / 2)
 
     # hidung ada di permukaan depan wajah (model menghadap -Y), sendi lain di tengah irisan
-    return {i: Vector((xz[i, 0], kedalaman(*xz[i], depan=(i == NOSE)), xz[i, 1])) for i in range(len(xz))}
+    menempel = set()
+    J = {i: Vector((xz[i, 0], kedalaman(i, *xz[i]), xz[i, 1])) for i in range(len(xz))}
+    pisahkan_lengan.tempel = [J[i] for i in menempel]
+    print("sendi lengan menempel badan:", sorted(menempel))
+    return J
 
 
 def tengah(*ps):
@@ -201,6 +219,8 @@ def pasang_bobot(obj, arm, J):
     bpy.data.objects.remove(proxy)
 
     isi_bobot_kosong(obj)
+    pisahkan_lengan(obj, arm)
+    putus_jembatan(obj, arm)
     rapikan_rok(obj, arm)
     # tangan hasil generator cacat (jari menyatu) -> ganti tangan buatan dengan tanggai emas
     kulit = tuple(c ** 2.2 for c in (0.88, 0.70, 0.62))  # sRGB -> linear
@@ -225,6 +245,148 @@ def isi_bobot_kosong(obj):
         for g in vs[j].groups:
             obj.vertex_groups[g.group].add([i], g.weight, "REPLACE")
     print("titik tanpa bobot diisi:", len(kosong))
+
+
+def jarak_ruas(p, a, b):
+    ab = b - a
+    t = min(1.0, max(0.0, (p - a).dot(ab) / max(1e-9, ab.length_squared)))
+    return (p - (a + ab * t)).length
+
+
+def warna_emas(obj):
+    """Per titik: True bila warna teksturnya emas (siger), False untuk renda putih, kulit, pita merah, rompi."""
+    me = obj.data
+    hasil = np.zeros(len(me.vertices), bool)
+    gambar = {}
+    for i, mat in enumerate(me.materials):
+        for nd in (mat.node_tree.nodes if mat and mat.use_nodes else []):
+            # tekstur warna bisa langsung ke Base Color atau lewat node Mix (campuran warna titik hasil proyeksi)
+            if nd.type == "TEX_IMAGE" and nd.image and any(l.to_socket.name == "Base Color" or l.to_node.type == "MIX"
+                                                         for l in nd.outputs[0].links):
+                img = nd.image
+                gambar[i] = (np.array(img.pixels[:], np.float32).reshape(img.size[1], img.size[0], -1)[..., :3], img.size)
+    if not gambar or not me.uv_layers.active:
+        return hasil
+    uv = me.uv_layers.active.data
+    jumlah = np.zeros((len(me.vertices), 3))
+    n = np.zeros(len(me.vertices))
+    for poly in me.polygons:
+        if poly.material_index not in gambar:
+            continue
+        px, (w, h) = gambar[poly.material_index]
+        for li in poly.loop_indices:
+            u, v = uv[li].uv
+            c = px[int(min(h - 1, max(0, v * h))), int(min(w - 1, max(0, u * w)))]
+            vi = me.loops[li].vertex_index
+            jumlah[vi] += c
+            n[vi] += 1
+    rata = jumlah / np.maximum(n, 1)[:, None]
+    mx, mn = rata.max(1), rata.min(1)
+    jenuh = (mx - mn) / np.maximum(mx, 1e-6)
+    r, g, b = rata.T
+    hue = np.degrees(np.arctan2(np.sqrt(3) * (g - b), 2 * r - g - b)) % 360
+    # emas siger: kuning-jingga, cukup terang & jenuh (kulit lebih merah, renda putih tidak jenuh)
+    return (n > 0) & (jenuh > 0.25) & (mx > 0.3) & (hue > 30) & (hue < 62)
+
+
+def pisahkan_lengan(obj, arm):
+    """Pose foto: tangan menyentuh siger / di depan dada, jadi bone heat ikut membobot siger & dada ke lengan
+    (melar saat lengan bergerak). Bobot lengan pada titik yang jauh dari ruas lengan dipindah ke kepala/dada."""
+    bones = arm.data.bones
+    z_leher = bones["neck"].head_local.z
+    z_kepala = bones["head"].head_local.z
+    vg = {g.name: g for g in obj.vertex_groups}
+    idx = {g.index: g.name for g in obj.vertex_groups}
+    dipindah = 0
+    emas = warna_emas(obj)
+    tempel = getattr(pisahkan_lengan, "tempel", [])
+
+    def sendi_tempel(p):
+        return any((p - q).length < 1e-4 for q in tempel)
+
+    for sisi in "LR":
+        rantai = [f"upper_arm.{sisi}", f"forearm.{sisi}", f"hand.{sisi}"]
+        ruas = []
+        for n in rantai:
+            b = bones[n]
+            ekor = b.tail_local
+            if n.startswith("hand"):
+                ekor = b.head_local + (b.tail_local - b.head_local) * 1.6  # jari & kuku tanggai
+            ruas.append((b.head_local.copy(), ekor.copy()))
+        W = bones[f"hand.{sisi}"].head_local
+        fore = bones[f"forearm.{sisi}"]
+        arah = (fore.tail_local - fore.head_local).normalized()
+        Lp = 0.4 * fore.length  # perkiraan panjang telapak, sama seperti tangan.py
+        for v in obj.data.vertices:
+            w = {idx[g.group]: g.weight for g in v.groups}
+            w_lengan = sum(w.get(n, 0) for n in rantai)
+            if w_lengan <= 0:
+                continue
+            d = min(jarak_ruas(v.co, a, b) for a, b in ruas)
+            f = min(1.0, max(0.0, (d - LENGAN_R0) / (LENGAN_R1 - LENGAN_R0)))
+            # siger (emas, bukan renda putih/kulit) yang tersentuh tangan terangkat ikut kepala
+            # (jari tangan asli yang bertumpuk dengan siger tidak dibedakan: tangannya diganti tangan buatan)
+            if v.co.z > z_kepala - 0.02 and emas[v.index] and jarak_ruas(v.co, *ruas[1]) > GELANG_R:
+                f = 1.0
+            # zona tangan asli (di depan pergelangan) dekat siger: tangan asli nanti dihapus (tangan.py, bobot >= 0.5)
+            # dan diganti tangan buatan; titik bobot campuran di sini jadi lembaran melar, jadi ikut kepala penuh
+            if v.co.z > z_kepala - 0.02 and (v.co - W).dot(arah) > 0.004 and (v.co - W).length < 4 * Lp:
+                if w.get(f"hand.{sisi}", 0) + w.get(f"forearm.{sisi}", 0) < 0.5:
+                    f = 1.0
+            # lengan bawah/tangan menempel di depan badan: yang di belakangnya adalah badan (selendang, kalung)
+            for a, b in ruas[1:]:
+                if sendi_tempel(a) or sendi_tempel(b):
+                    ab = b - a
+                    t = min(1.0, max(0.0, (v.co - a).dot(ab) / max(1e-9, ab.length_squared)))
+                    if v.co.y - (a + ab * t).y > LENGAN_BELAKANG:
+                        f = 1.0
+            if f <= 0:
+                continue
+            tujuan = "head" if v.co.z > z_kepala - 0.02 else ("neck" if v.co.z > z_leher + 0.02 else "chest")
+            for n in rantai:
+                if n in w:
+                    vg[n].add([v.index], w[n] * (1 - f), "REPLACE")
+            vg[tujuan].add([v.index], w.get(tujuan, 0) + w_lengan * f, "REPLACE")
+            dipindah += 1
+    print("pisahkan lengan: titik dipindah", dipindah)
+
+
+def putus_jembatan(obj, arm):
+    """Mesh generator menyatu di tempat tangan menyentuh siger/badan; segitiga yang menghubungkan titik milik
+    lengan bawah/tangan dengan titik milik kepala/badan akan melar saat lengan bergerak, jadi dibuang."""
+    gi = {g.name: g.index for g in obj.vertex_groups}
+    badan = {gi[n] for n in ("head", "neck", "chest", "spine")}
+    lengan = {gi[n] for s in "LR" for n in (f"forearm.{s}", f"hand.{s}")}
+    # di samping siger lengan atas yang terangkat juga bukan bagian kepala
+    lengan_siger = lengan | {gi["upper_arm.L"], gi["upper_arm.R"]}
+    z_siger = arm.data.bones["head"].head_local.z - 0.02
+    # di area siger bobot campuran kepala+lengan ditegaskan ke yang dominan, supaya batasnya tajam dan terpotong
+    nama = {g.index: g.name for g in obj.vertex_groups}
+    for v in obj.data.vertices:
+        if v.co.z <= z_siger:
+            continue
+        b_ = sum(g.weight for g in v.groups if g.group in badan)
+        l_ = sum(g.weight for g in v.groups if g.group in lengan_siger)
+        if b_ > 0.1 and l_ > 0.1:
+            kalah = lengan_siger if b_ > l_ else badan
+            for g in list(v.groups):
+                if g.group in kalah:
+                    obj.vertex_groups[nama[g.group]].remove([v.index])
+    wb, wl = [], []
+    for v in obj.data.vertices:
+        wb.append(sum(g.weight for g in v.groups if g.group in badan))
+        wl.append(sum(g.weight for g in v.groups if g.group in (lengan_siger if v.co.z > z_siger else lengan)))
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    # bobot lengan berubah tajam dalam satu segitiga yang juga menyentuh kepala/badan = jembatan
+    # (siku tidak kena: di sana pasangannya lengan atas, bukan badan)
+    buang = [f for f in bm.faces
+             if max(wl[v.index] for v in f.verts) - min(wl[v.index] for v in f.verts) > 0.35
+             and max(wb[v.index] for v in f.verts) > 0.35]
+    bmesh.ops.delete(bm, geom=buang, context="FACES_ONLY")
+    bm.to_mesh(obj.data)
+    bm.free()
+    print("putus jembatan lengan-badan:", len(buang), "segitiga")
 
 
 def rapikan_rok(obj, arm):

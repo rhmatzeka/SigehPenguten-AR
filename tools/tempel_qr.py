@@ -8,9 +8,9 @@ import sys
 import segno
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-# link lama sengaja dipertahankan: QR di poster yang sudah dicetak memakai ini, dan repo
-# rhmatzeka/tari-sigeh-penguten mengalihkannya ke rhmatzeka.github.io/SigehPenguten-AR
-URL = "https://rhmatzeka.github.io/tari-sigeh-penguten/"
+# QR langsung ke Vercel. Poster lama yang sudah dicetak memakai rhmatzeka.github.io/tari-sigeh-penguten/
+# (dialihkan ke GitHub Pages), jadi tetap jalan.
+URL = "https://tarisigehpenguten.vercel.app/"
 SKALA = 2
 TINTA = "#2b1a0a"
 FONT = "work/fonts/Poppins-SemiBold.ttf"

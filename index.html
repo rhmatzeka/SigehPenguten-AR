@@ -210,7 +210,7 @@
         titik: [640, 667], pil: [KANAN, BARIS[5]] },
       { label: "Kain Tapis", jenis: "Kain tradisional", judul: "Kain Tapis",
         isi: "Kain tradisional Lampung yang terlihat pada bagian bawah busana, dengan warna hitam serta hiasan motif putih atau perak dan merah. Tapis melambangkan kekayaan kerajinan tekstil, identitas budaya, dan keterampilan turun-temurun masyarakat Lampung.",
-        titik: [513, 813], pil: [KANAN, BARIS[6]] },
+        titik: [505, 742], pil: [KANAN, BARIS[6]] },
     ];
 
     // motif tapis sederhana (belah ketupat emas di atas merah) untuk lantai panggung
@@ -721,8 +721,12 @@
           const kol = KETERANGAN.filter((k) => k.obj && (k.pil[0] < 0) === kiri);
           if (!kol.length) continue;
           for (const k of kol) {
-            k.obj.getVertexPosition(k.vi, v);
-            [k.ax, k.ay] = keLayar(v.applyMatrix4(k.obj.matrixWorld), kotak);
+            k.obj.getVertexPosition(k.vi, v).applyMatrix4(k.obj.matrixWorld);
+            // saat duduk bersimpuh kain tapis terhampar di lantai (shader "rok tergerai") dan tak terlihat dari
+            // depan; titik ditahan setinggi lipatan kain di atas lantai supaya tetap menunjuk kain, bukan panggung
+            panggung.worldToLocal(v);
+            v.y = Math.max(v.y, 0.03);
+            [k.ax, k.ay] = keLayar(panggung.localToWorld(v), kotak);
             v.set(k.pil[0], k.pil[1], MAJU);
             [k.px, k.py] = keLayar(panggung.localToWorld(v), kotak);
           }

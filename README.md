@@ -4,7 +4,7 @@ Web AR untuk mengenalkan **Tari Sigeh Penguten**, tarian penyambutan tamu dari P
 Pindai QR di poster, arahkan kamera HP ke poster, lalu penari 3D berkostum adat Lampung muncul di atas
 panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keterangan bagian kostumnya.
 
-**Coba langsung:** <https://rhmatzeka.github.io/SigehPenguten-AR/> (cadangan: <https://tarisigehpenguten.vercel.app>)
+**Coba langsung:** <https://tarisigehpenguten.vercel.app> (cadangan: <https://rhmatzeka.github.io/SigehPenguten-AR/>)
 (buka di HP, lalu arahkan kamera ke [poster](poster/poster-tari-sigeh-qr.png))
 
 <p align="center">
@@ -68,7 +68,8 @@ Semua langkah dijalankan dengan skrip di folder [`tools/`](tools/):
    (MediaPipe salah menebak kedalaman, padahal penari tetap menghadap depan) diganti peralihan halus.
 4. **Rigging + animasi**: `rig_animasi.py` memasang 19 tulang otomatis dari titik tubuh di foto, membagi bobot
    kulit (rok dibuat ikut pinggul supaya tidak terbelah), mengganti tangan dengan tangan buatan berkuku
-   tanggai emas (`tangan.py`), memasang gerakan dari video, lalu mengekspor GLB terkompresi.
+   tanggai emas dan gelang kano (`tangan.py`; lengan dipotong rata di ujung lengan bawah asli dan sendi pergelangan
+   digeser ke situ supaya tangan tidak lepas), memasang gerakan dari video, lalu mengekspor GLB terkompresi.
    Karena di gambar penari satu tangan menyentuh siger dan tangan lain di depan dada, bobot lengan dipisahkan dari
    kepala/badan (bagian emas siger dikenali dari warnanya) dan segitiga penghubung lengan-badan dipotong supaya tidak melar.
 5. **Target pindai**: poster ber-QR dibuat dengan `tempel_qr.py`, lalu dikompilasi menjadi `assets/poster.mind`
@@ -99,5 +100,5 @@ python3 -m http.server 8000
 ## Catatan
 
 - Teks keterangan kostum diambil dari materi tugas (bagian kostum Tari Sigeh Penguten).
-- Link lama `rhmatzeka.github.io/tari-sigeh-penguten` tetap berfungsi dan otomatis mengalihkan ke halaman ini,
-  jadi QR pada poster yang sudah dicetak tidak perlu diganti.
+- QR di poster sekarang langsung ke <https://tarisigehpenguten.vercel.app>. Poster lama yang sudah dicetak
+  (QR ke `rhmatzeka.github.io/tari-sigeh-penguten`) tetap berfungsi karena dialihkan ke GitHub Pages.

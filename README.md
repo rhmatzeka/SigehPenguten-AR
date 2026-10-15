@@ -15,7 +15,8 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 
 - **Tanpa install aplikasi**: cukup browser HP (Chrome di Android, Safari di iPhone).
 - **Penari 3D menari** di atas panggung setengah lingkaran bermotif tapis, gerakannya diambil dari video tari asli.
-- **Keterangan kostum**: label Nama Tarian, Siger, Kalung Papan Jajar, Tanggai, Bulu Serti, dan Kain Tapis.
+- **Keterangan kostum**: 14 label (Nama Tarian, Siger, Bunga Hiasan Kepala, Anting-Anting, Sanggul, Kalung Papan Jajar,
+  Bebe Usus Ayam, Tanggai, Pending, Baju Sesapur, Gelang Burung, Gelang Kano, Selendang Merah, Kain Tapis).
   Garis penunjuknya ikut bergerak bersama penari, dan setiap label bisa diketuk untuk membaca penjelasannya.
 - **Musik pengiring**: musik tari otomatis diputar saat poster terlihat dan berhenti saat kamera menjauh.
   Tombol **Musik** untuk mematikan/menyalakan.
@@ -94,7 +95,6 @@ python3 -m http.server 8000
 
 ## Catatan
 
-- Teks keterangan kostum ditulis dari pengetahuan umum tentang pakaian adat Lampung.
-  Untuk keperluan tugas, sebaiknya dicocokkan lagi dengan materi dari guru atau sumber resmi.
+- Teks keterangan kostum diambil dari materi tugas (bagian kostum Tari Sigeh Penguten).
 - Link lama `rhmatzeka.github.io/tari-sigeh-penguten` tetap berfungsi dan otomatis mengalihkan ke halaman ini,
   jadi QR pada poster yang sudah dicetak tidak perlu diganti.

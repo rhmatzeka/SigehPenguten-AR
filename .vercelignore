@@ -1,0 +1,6 @@
+.venv
+work
+tools
+docs
+.playwright-mcp
+*.pyc

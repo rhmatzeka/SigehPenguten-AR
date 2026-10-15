@@ -34,6 +34,34 @@ def isi_kosong(a):
     return out
 
 
+def betulkan_hadap(P, fps):
+    """MediaPipe kadang salah menebak kedalaman dan mengira penari membelakangi kamera (di video ia tetap
+    menghadap depan), sehingga badan berputar ~180 derajat sesaat. Frame itu (plus sedikit tepi) diganti
+    peralihan dari pose terakhir yang benar ke pose benar berikutnya."""
+    def hadap(a, b):
+        v = P[:, a] - P[:, b]
+        return np.degrees(np.arctan2(v[:, 1], v[:, 0]))
+
+    def selisih(sudut):
+        return np.abs((sudut - np.median(sudut) + 180) % 360 - 180)
+
+    salah = (selisih(hadap(23, 24)) > 75) | (selisih(hadap(11, 12)) > 75)
+    tepi = int(fps * 0.3)  # tepi rentang salah sering masih goyah (kaki terdeteksi di atas pinggul)
+    salah = np.convolve(salah, np.ones(2 * tepi + 1), mode="same") > 0
+    if not salah.any():
+        return P
+    Q = P.copy()
+    t = np.arange(len(P))
+    baik = ~salah
+    for j in range(P.shape[1]):
+        for k in range(P.shape[2]):
+            Q[salah, j, k] = np.interp(t[salah], t[baik], P[baik, j, k])
+    awal = np.flatnonzero(np.diff(np.r_[0, salah.astype(int)]) == 1)
+    akhir = np.flatnonzero(np.diff(np.r_[salah.astype(int), 0]) == -1)
+    print("hadap terbalik dibetulkan:", ", ".join(f"{a / fps:.1f}-{b / fps:.1f} dtk" for a, b in zip(awal, akhir)))
+    return Q
+
+
 def kaki_simpuh(P, fps):
     """Saat penari duduk, ganti kaki hasil mocap (tertutup rok, sering tertekuk aneh) dengan pose duduk
     bersimpuh yang benar: lutut di depan, betis terlipat ke belakang di lantai, punggung kaki menempel lantai.
@@ -78,6 +106,7 @@ def main(src, out, awal=None, akhir=None):
     w = haluskan(w, fps * 0.1)
 
     blender = np.stack([w[..., 0], w[..., 2], -w[..., 1]], axis=-1)
+    blender = betulkan_hadap(blender, fps)
 
     # pinggul tetap di tengah poster (x,y), tinggi diatur supaya titik terendah menyentuh lantai
     terendah = blender[:, TITIK_LANTAI, 2].min(axis=1)

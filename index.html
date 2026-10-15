@@ -44,8 +44,28 @@
     #alat button[aria-pressed="true"] { background: #b8862f; color: #2b1a0a; }
     /* keterangan: pil berlabel + garis penunjuk ke bagian tubuh penari */
     #garis { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
-    #garis line { stroke: #f1c96b; stroke-width: 1.6; }
-    #garis circle { fill: #f1c96b; stroke: #2b1a0a; stroke-width: 1.2; }
+    /* garis penunjuk bersudut: lapisan gelap di bawah supaya tetap terbaca di latar terang maupun gelap */
+    #garis polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; transition: opacity .2s; }
+    #garis .bayang { stroke: rgba(25, 12, 4, .6); stroke-width: 3.8; }
+    #garis .emas { stroke: #f1c96b; stroke-width: 1.6; }
+    #garis .aktif.emas { stroke: #ffe29a; stroke-width: 2.4; }
+    #garis.ada-aktif polyline:not(.aktif) { opacity: .3; }
+    /* titik di bagian kostum: inti emas + cincin berdenyut */
+    .titik {
+      position: fixed; z-index: 4; left: 0; top: 0; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px;
+      border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3c4, #f1c96b 55%, #b8862f);
+      border: 1.5px solid #2b1a0a; pointer-events: none; will-change: transform; transition: opacity .2s;
+    }
+    .titik::after {
+      content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid #f1c96b;
+      animation: denyut 1.8s ease-out infinite;
+    }
+    @keyframes denyut { from { transform: scale(.45); opacity: .9; } to { transform: scale(1.35); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .titik::after { animation: none; opacity: .5; } }
+    #pil-pil.ada-aktif .pil:not(.aktif), #pil-pil.ada-aktif .titik:not(.aktif) { opacity: .45; }
+    .pil.aktif { background: #b8862f; color: #2b1a0a; border-color: #ffe29a; }
+    .pil.aktif i { background: #2b1a0a; color: #f1c96b; }
+    .titik.aktif { transform-origin: center; width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; }
     .pil {
       position: fixed; z-index: 4; left: 0; top: 0; display: flex; align-items: center; gap: 6px;
       padding: 4px 6px 4px 10px; border-radius: 999px; border: 1.5px solid #f1c96b;
@@ -142,53 +162,55 @@
     };
     let mode = "dinding";
 
-    // Keterangan bagian kostum. tulang = tulang yang diikuti titik penunjuk; geser = offset (satuan panggung)
-    // dari tulang; pil = posisi pil di panggung (kiri/kanan penari).
-    // kiri layar = sisi kanan penari (tulang .R); pil: [x, y] di ruang panggung, 7 baris per sisi
+    // Keterangan bagian kostum. titik = letak bagian itu di gambar sumber model 3D (work/v2/trellis-input.png,
+    // siluet penari x 311-683, y 0-993 px); saat model dimuat dicari titik mesh terdepan di situ, lalu titik itu
+    // diikuti tiap frame (ikut kulit yang bergerak). bahan = batasi pencarian ke material itu, belakang = ambil
+    // permukaan belakang. pil: kolom kiri/kanan layar; urutan dalam array = urutan baris dari atas.
+    const SILUET = { x0: 311, x1: 683, y0: 0, y1: 993 };
     const KIRI = -0.22, KANAN = 0.22, BARIS = [0.47, 0.40, 0.33, 0.26, 0.19, 0.12, 0.05];
     const KETERANGAN = [
-      { label: "Nama Tarian", jenis: "Nama tarian", judul: "Tari Sigeh Penguten",
-        isi: "Tari Sigeh Penguten adalah tarian tradisional Lampung yang bermakna penghormatan dan penyambutan tamu. Tarian ini mencerminkan keramahan, kesopanan, serta kebanggaan masyarakat Lampung dalam melestarikan budaya daerah.",
-        tulang: "head", geser: [0, 0.085, 0], pil: [KANAN, BARIS[0]] },
       { label: "Siger", jenis: "Mahkota", judul: "Siger Lampung",
         isi: "Mahkota besar berwarna emas yang dikenakan di kepala. Siger melambangkan identitas masyarakat Lampung, kehormatan, dan kebanggaan terhadap adat istiadat. Hiasan merah dan emas memperkuat kesan megah pada busana.",
-        tulang: "head", geser: [-0.02, 0.05, 0.01], pil: [KIRI, BARIS[0]] },
-      { label: "Bunga Hiasan Kepala", jenis: "Hiasan kepala", judul: "Bunga Hiasan Kepala",
-        isi: "Bunga merah yang terlihat di sisi kepala berfungsi memperindah rambut dan melengkapi siger. Bunga dapat dimaknai sebagai lambang keindahan, kesegaran, dan kelembutan.",
-        tulang: "head", geser: [-0.03, 0.012, 0], pil: [KIRI, BARIS[1]] },
-      { label: "Anting-Anting", jenis: "Perhiasan telinga", judul: "Anting-Anting",
-        isi: "Perhiasan yang dikenakan pada telinga. Fungsinya mempercantik penampilan dan menyelaraskan perhiasan kepala dengan aksesori lainnya. Secara simbolis, perhiasan ini menggambarkan keanggunan perempuan.",
-        tulang: "head", geser: [0.028, -0.012, 0.005], pil: [KANAN, BARIS[1]] },
+        titik: [510, 110], pil: [KIRI, BARIS[0]] },
       { label: "Sanggul", jenis: "Tata rambut", judul: "Sanggul",
         isi: "Sanggul yang digunakan dalam Tari Sigeh Penguten dikenal sebagai sanggul belatung tebak. Sanggul berfungsi merapikan dan membentuk rambut agar aksesori kepala dapat terpasang dengan baik. Sanggul juga melengkapi penampilan perempuan Lampung dalam busana adat.",
-        tulang: "head", geser: [-0.01, 0.01, -0.035], pil: [KIRI, BARIS[2]] },
-      { label: "Kalung Papan Jajar", jenis: "Perhiasan dada", judul: "Kalung Papan Jajar",
-        isi: "Hiasan emas yang tersusun bertingkat di bagian dada. Kalung ini menjadi bagian penting dari perhiasan adat Lampung dan menambah kesan anggun serta berwibawa. Bentuk bertingkatnya memperlihatkan kerumitan seni perhiasan tradisional.",
-        tulang: "neck", geser: [0, -0.025, 0.02], pil: [KIRI, BARIS[3]] },
+        titik: [510, 175], belakang: true, pil: [KIRI, BARIS[1]] },
+      { label: "Bunga Hiasan Kepala", jenis: "Hiasan kepala", judul: "Bunga Hiasan Kepala",
+        isi: "Bunga merah yang terlihat di sisi kepala berfungsi memperindah rambut dan melengkapi siger. Bunga dapat dimaknai sebagai lambang keindahan, kesegaran, dan kelembutan.",
+        titik: [453, 200], pil: [KIRI, BARIS[2]] },
       { label: "Bebe Usus Ayam", jenis: "Hiasan dada", judul: "Bebe Usus Ayam",
         isi: "Bebe usus ayam merupakan hiasan atau penutup dada yang dibuat menggunakan sulaman menyerupai bentuk usus ayam. Bebe dikenakan di bagian dada dan bahu untuk memperindah busana. Bentuk sulamannya mencerminkan keterampilan seni hias dalam pakaian tradisional Lampung.",
-        tulang: "chest", geser: [-0.035, 0.015, 0.02], pil: [KIRI, BARIS[4]] },
+        titik: [450, 313], pil: [KIRI, BARIS[3]] },
+      { label: "Kalung Papan Jajar", jenis: "Perhiasan dada", judul: "Kalung Papan Jajar",
+        isi: "Hiasan emas yang tersusun bertingkat di bagian dada. Kalung ini menjadi bagian penting dari perhiasan adat Lampung dan menambah kesan anggun serta berwibawa. Bentuk bertingkatnya memperlihatkan kerumitan seni perhiasan tradisional.",
+        titik: [493, 333], pil: [KIRI, BARIS[4]] },
       { label: "Tanggai", jenis: "Hiasan jari", judul: "Tanggai",
         isi: "Tanggai adalah aksesori berbentuk kuku panjang berwarna keemasan yang dipasang pada jari-jari penari. Tanggai berfungsi memperindah jari dan mempertegas gerakan tangan dalam tarian. Aksesori ini menjadi salah satu ciri khas penampilan Tari Sigeh Penguten.",
-        tulang: "handR", geser: [0, 0, 0], pil: [KIRI, BARIS[5]] },
+        titik: [405, 70], bahan: "emas_tanggai", pil: [KIRI, BARIS[5]] },
       { label: "Pending", jenis: "Ikat pinggang", judul: "Pending atau Ikat Pinggang",
         isi: "Hiasan pada bagian pinggang yang mengikat dan merapikan busana. Ornamen emasnya memberikan kesan mewah dan teratur. Secara simbolis, pending dapat dijelaskan sebagai pelengkap yang menegaskan kerapian dan kewibawaan penari.",
-        tulang: "spine", geser: [0, 0, 0.025], pil: [KIRI, BARIS[6]] },
-      { label: "Baju Sesapur", jenis: "Busana atasan", judul: "Baju Putih Berenda / Sesapur",
-        isi: "Baju putih dengan detail renda yang dikenakan sebagai atasan. Warna putih dapat dimaknai sebagai ketulusan dan kesucian, sedangkan renda menunjukkan kehalusan serta keindahan pengerjaan busana. Model baju pada gambar perlu dibedakan dari jenis busana adat lain yang digunakan dalam tradisi Lampung.",
-        tulang: "chest", geser: [0.045, -0.03, 0.015], pil: [KANAN, BARIS[2]] },
+        titik: [493, 470], pil: [KIRI, BARIS[6]] },
+      { label: "Nama Tarian", jenis: "Nama tarian", judul: "Tari Sigeh Penguten",
+        isi: "Tari Sigeh Penguten adalah tarian tradisional Lampung yang bermakna penghormatan dan penyambutan tamu. Tarian ini mencerminkan keramahan, kesopanan, serta kebanggaan masyarakat Lampung dalam melestarikan budaya daerah.",
+        titik: [510, 27], pil: [KANAN, BARIS[0]] },
+      { label: "Anting-Anting", jenis: "Perhiasan telinga", judul: "Anting-Anting",
+        isi: "Perhiasan yang dikenakan pada telinga. Fungsinya mempercantik penampilan dan menyelaraskan perhiasan kepala dengan aksesori lainnya. Secara simbolis, perhiasan ini menggambarkan keanggunan perempuan.",
+        titik: [559, 253], pil: [KANAN, BARIS[1]] },
       { label: "Gelang Burung", jenis: "Perhiasan lengan", judul: "Gelang Burung",
         isi: "Gelang burung merupakan aksesori berbahan logam yang memiliki hiasan berbentuk burung bersayap. Gelang ini biasanya dipasang pada lengan bagian atas. Fungsinya memperindah lengan dan melengkapi busana adat. Bentuk burung menjadi unsur ragam hias yang khas pada perhiasan tradisional Lampung.",
-        tulang: "forearmL", geser: [0, 0.01, 0], pil: [KANAN, BARIS[3]] },
+        titik: [650, 350], pil: [KANAN, BARIS[2]] },
       { label: "Gelang Kano", jenis: "Perhiasan tangan", judul: "Gelang Kano",
         isi: "Gelang tradisional yang dikenakan pada pergelangan tangan. Gelang kano memperindah gerakan tangan penari dan melengkapi perhiasan emas. Bentuknya merupakan bagian dari kekayaan aksesori adat Lampung.",
-        tulang: "handL", geser: [0, 0, 0], pil: [KANAN, BARIS[4]] },
+        titik: [567, 433], pil: [KANAN, BARIS[3]] },
+      { label: "Baju Sesapur", jenis: "Busana atasan", judul: "Baju Putih Berenda / Sesapur",
+        isi: "Baju putih dengan detail renda yang dikenakan sebagai atasan. Warna putih dapat dimaknai sebagai ketulusan dan kesucian, sedangkan renda menunjukkan kehalusan serta keindahan pengerjaan busana. Model baju pada gambar perlu dibedakan dari jenis busana adat lain yang digunakan dalam tradisi Lampung.",
+        titik: [547, 527], pil: [KANAN, BARIS[4]] },
       { label: "Selendang Merah", jenis: "Pelengkap busana", judul: "Selendang atau Kain Merah",
         isi: "Kain merah yang menjuntai di sisi tubuh berfungsi sebagai pelengkap busana dan memberikan aksen warna. Merah dapat ditafsirkan sebagai lambang semangat, keberanian, dan kehangatan dalam menyambut tamu.",
-        tulang: "hips", geser: [0.075, -0.06, 0], pil: [KANAN, BARIS[5]] },
+        titik: [640, 667], pil: [KANAN, BARIS[5]] },
       { label: "Kain Tapis", jenis: "Kain tradisional", judul: "Kain Tapis",
         isi: "Kain tradisional Lampung yang terlihat pada bagian bawah busana, dengan warna hitam serta hiasan motif putih atau perak dan merah. Tapis melambangkan kekayaan kerajinan tekstil, identitas budaya, dan keterampilan turun-temurun masyarakat Lampung.",
-        tulang: "shinL", geser: [-0.01, 0, 0.03], pil: [KANAN, BARIS[6]] },
+        titik: [513, 813], pil: [KANAN, BARIS[6]] },
     ];
 
     // motif tapis sederhana (belah ketupat emas di atas merah) untuk lantai panggung
@@ -212,69 +234,211 @@
       return t;
     }
 
-    // panggung setengah lingkaran yang menonjol dari poster: pijakan kaki penari
+    // ukuran set panggung (satuan panggung; lebar poster = 1). Semua bagian set ada di grup `panggung`,
+    // jadi ikut membesar/mengecil bersama penari saat di-zoom dan ikut berdiri saat poster di meja.
+    const SET = { R: 0.2, tinggi: 0.47, bawah: -0.02 };
+
+    function kanvas(w, h, gambar) {
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      gambar(c.getContext("2d"), w, h);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 4;
+      return t;
+    }
+
+    function bidang(w, h, tex, transparan = false) {
+      return new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: transparan, alphaTest: transparan ? 0.02 : 0 }));
+    }
+
+    // lantai setengah lingkaran bermotif tapis dengan lis emas dan anak tangga depan
     function lantaiPanggung() {
       const g = new THREE.Group();
-      const R = 0.2, T = 0.016;
+      const R = SET.R, T = 0.016;
+      const kayu = new THREE.MeshStandardMaterial({ color: 0x4a150c, roughness: 0.7 });
       const atas = new THREE.Mesh(new THREE.CylinderGeometry(R, R, T, 64, 1, false, -Math.PI / 2, Math.PI),
-        [new THREE.MeshStandardMaterial({ color: 0x5a1a10, roughness: 0.7 }),
-         new THREE.MeshStandardMaterial({ map: teksturTapis(), roughness: 0.85 }),
-         new THREE.MeshStandardMaterial({ color: 0x5a1a10, roughness: 0.7 })]);
+        [kayu, new THREE.MeshStandardMaterial({ map: teksturTapis(), roughness: 0.85 }), kayu]);
       atas.position.y = -T / 2;
       g.add(atas);
-      const lis = new THREE.Mesh(new THREE.TorusGeometry(R, 0.0045, 8, 64, Math.PI),
-        new THREE.MeshStandardMaterial({ color: 0xd9a943, metalness: 1, roughness: 0.3, envMapIntensity: 1.2 }));
+      const emas = new THREE.MeshStandardMaterial({ color: 0xd9a943, metalness: 1, roughness: 0.3, envMapIntensity: 1.2 });
+      const lis = new THREE.Mesh(new THREE.TorusGeometry(R, 0.0045, 8, 64, Math.PI), emas);
       lis.rotation.x = Math.PI / 2; // busur 0..π di bidang XY -> setengah lingkaran di depan poster (+Z)
       g.add(lis);
+      const tangga = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.018, R + 0.018, T * 0.6, 64, 1, false, -Math.PI / 2, Math.PI), kayu);
+      tangga.position.y = -T - T * 0.3;
+      g.add(tangga);
+      const lis2 = new THREE.Mesh(new THREE.TorusGeometry(R + 0.018, 0.003, 8, 64, Math.PI), emas);
+      lis2.rotation.x = Math.PI / 2;
+      lis2.position.y = -T;
+      g.add(lis2);
       return g;
     }
 
-    // latar panggung yang menutupi foto penari di poster supaya penari 3D tidak bertumpuk dengan foto
-    function latarPanggung() {
-      const c = document.createElement("canvas");
-      c.width = 512; c.height = 550;
-      const g = c.getContext("2d");
-      const langit = g.createLinearGradient(0, 0, 0, c.height);
-      langit.addColorStop(0, "#2a0d08");
-      langit.addColorStop(0.62, "#5a1a10");
-      langit.addColorStop(0.63, "#3a140c");
-      langit.addColorStop(1, "#1c0905");
-      g.fillStyle = langit;
-      g.fillRect(0, 0, c.width, c.height);
-      // tirai: lipatan vertikal halus
-      for (let x = 0; x < c.width; x += 32) {
-        const t = g.createLinearGradient(x, 0, x + 32, 0);
-        t.addColorStop(0, "rgba(0,0,0,0.18)");
-        t.addColorStop(0.5, "rgba(255,190,140,0.06)");
-        t.addColorStop(1, "rgba(0,0,0,0.18)");
-        g.fillStyle = t;
-        g.fillRect(x, 0, 32, c.height * 0.63);
+    // dinding belakang: tirai merah tua dengan sorot lampu, menutupi foto penari di poster (mode dinding)
+    function teksturTirai(w, h, sorot) {
+      return kanvas(w, h, (g) => {
+        const dasar = g.createLinearGradient(0, 0, 0, h);
+        dasar.addColorStop(0, "#2a0b07");
+        dasar.addColorStop(1, "#4d140b");
+        g.fillStyle = dasar;
+        g.fillRect(0, 0, w, h);
+        const lipat = 28;
+        for (let x = 0; x < w; x += lipat) {
+          const t = g.createLinearGradient(x, 0, x + lipat, 0);
+          t.addColorStop(0, "rgba(0,0,0,0.32)");
+          t.addColorStop(0.45, "rgba(255,170,120,0.10)");
+          t.addColorStop(1, "rgba(0,0,0,0.32)");
+          g.fillStyle = t;
+          g.fillRect(x, 0, lipat, h);
+        }
+        if (sorot) {
+          const s = g.createRadialGradient(w / 2, h * 0.35, 10, w / 2, h * 0.45, w * 0.6);
+          s.addColorStop(0, "rgba(255,214,150,0.45)");
+          s.addColorStop(1, "rgba(255,214,150,0)");
+          g.fillStyle = s;
+          g.fillRect(0, 0, w, h);
+        }
+        // pita tapis di kaki dinding
+        g.fillStyle = "#d9a943";
+        g.fillRect(0, h - 26, w, 3);
+        g.fillRect(0, h - 8, w, 3);
+        g.strokeStyle = "#d9a943"; g.lineWidth = 2;
+        for (let x = 8; x < w; x += 18) {
+          g.beginPath(); g.moveTo(x, h - 17 - 5); g.lineTo(x + 5, h - 17); g.lineTo(x, h - 17 + 5); g.lineTo(x - 5, h - 17); g.closePath(); g.stroke();
+        }
+      });
+    }
+
+    // tirai samping yang diikat tali emas
+    function teksturTiraiSamping() {
+      return kanvas(96, 512, (g, w, h) => {
+        const ikat = h * 0.58;
+        g.beginPath();
+        g.moveTo(0, 0); g.lineTo(w, 0);
+        g.quadraticCurveTo(w * 0.95, ikat * 0.7, w * 0.42, ikat);
+        g.quadraticCurveTo(w * 0.7, h * 0.85, w * 0.95, h);
+        g.lineTo(0, h); g.closePath();
+        const merah = g.createLinearGradient(0, 0, w, 0);
+        merah.addColorStop(0, "#5e130b");
+        merah.addColorStop(0.5, "#a3271a");
+        merah.addColorStop(1, "#6e170d");
+        g.fillStyle = merah;
+        g.fill();
+        g.save(); g.clip();
+        for (let x = 0; x < w; x += 16) {
+          const t = g.createLinearGradient(x, 0, x + 16, 0);
+          t.addColorStop(0, "rgba(0,0,0,0.25)"); t.addColorStop(0.5, "rgba(255,200,160,0.12)"); t.addColorStop(1, "rgba(0,0,0,0.25)");
+          g.fillStyle = t; g.fillRect(x, 0, 16, h);
+        }
+        g.restore();
+        // tali emas + rumbai (bukan bola bulat, supaya tidak terlihat seperti titik keterangan)
+        g.fillStyle = "#e0b04a";
+        g.fillRect(0, ikat - 5, w * 0.55, 8);
+        g.beginPath();
+        g.moveTo(w * 0.44, ikat + 2); g.lineTo(w * 0.56, ikat + 2);
+        g.lineTo(w * 0.62, ikat + 40); g.lineTo(w * 0.38, ikat + 40); g.closePath();
+        g.fill();
+        g.strokeStyle = "#8a5d17"; g.lineWidth = 1.5;
+        for (let i = 0; i < 6; i++) {
+          const x = w * (0.4 + i * 0.04);
+          g.beginPath(); g.moveTo(x, ikat + 14); g.lineTo(x, ikat + 40); g.stroke();
+        }
+      });
+    }
+
+    // hiasan atas (lambrekin) merah berumbai emas
+    function teksturHiasanAtas() {
+      return kanvas(512, 96, (g, w, h) => {
+        const n = 8, lebarGel = w / n, dasar = h * 0.55;
+        g.beginPath();
+        g.moveTo(0, 0); g.lineTo(w, 0); g.lineTo(w, dasar);
+        for (let i = n - 1; i >= 0; i--) g.quadraticCurveTo((i + 0.5) * lebarGel, h * 0.98, i * lebarGel, dasar);
+        g.closePath();
+        const merah = g.createLinearGradient(0, 0, 0, h);
+        merah.addColorStop(0, "#7a1a10"); merah.addColorStop(1, "#a8291b");
+        g.fillStyle = merah; g.fill();
+        g.lineWidth = 5; g.strokeStyle = "#e0b04a"; g.stroke();
+        g.fillStyle = "#e0b04a";
+        g.fillRect(0, 10, w, 4);
+        for (let i = 0; i < n; i++) {
+          g.beginPath(); g.arc((i + 0.5) * lebarGel, h * 0.62, 7, 0, Math.PI * 2); g.fill();
+        }
+      });
+    }
+
+    // set panggung lengkap (dinding, tirai samping, hiasan atas, lantai) dalam satuan panggung
+    function setPanggung() {
+      const g = new THREE.Group();
+      const L = SET.R * 2, H = SET.tinggi - SET.bawah;
+      const dinding = bidang(L, H, teksturTirai(512, 600, true));
+      dinding.position.set(0, SET.bawah + H / 2, 0.003);
+      g.add(dinding);
+      const sampingTex = teksturTiraiSamping();
+      for (const sisi of [-1, 1]) {
+        const t = bidang(0.07, H, sampingTex, true);
+        t.position.set(sisi * (SET.R - 0.028), SET.bawah + H / 2, 0.012);
+        if (sisi > 0) t.scale.x = -1;
+        g.add(t);
       }
-      // sorot lampu dari atas dan genangan cahaya di lantai
-      const sorot = g.createRadialGradient(256, 160, 10, 256, 220, 300);
-      sorot.addColorStop(0, "rgba(255,214,150,0.35)");
-      sorot.addColorStop(1, "rgba(255,214,150,0)");
-      g.fillStyle = sorot;
-      g.fillRect(0, 0, c.width, c.height);
-      g.save();
-      g.translate(256, 480);
-      g.scale(1, 0.28);
-      const lantai = g.createRadialGradient(0, 0, 10, 0, 0, 230);
-      lantai.addColorStop(0, "rgba(255,220,160,0.75)");
-      lantai.addColorStop(1, "rgba(255,220,160,0)");
-      g.fillStyle = lantai;
-      g.beginPath(); g.arc(0, 0, 230, 0, Math.PI * 2); g.fill();
-      g.restore();
-      // bingkai emas tipis
-      g.strokeStyle = "#c9a14a";
-      g.lineWidth = 6;
-      g.strokeRect(3, 3, c.width - 6, c.height - 6);
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(FOTO.w + 0.006, FOTO.h + 0.006),
-        new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+      const atas = bidang(L + 0.03, 0.06, teksturHiasanAtas(), true);
+      atas.position.set(0, SET.tinggi - 0.026, 0.018);
+      g.add(atas);
+      const lis = new THREE.Mesh(new THREE.BoxGeometry(L + 0.04, 0.008, 0.012),
+        new THREE.MeshStandardMaterial({ color: 0xd9a943, metalness: 1, roughness: 0.3, envMapIntensity: 1.2 }));
+      lis.position.set(0, SET.tinggi + 0.004, 0.012);
+      g.add(lis);
+      g.add(lantaiPanggung());
+      return g;
+    }
+
+    // penutup rata di atas foto penari pada poster: tetap seukuran foto (tidak ikut zoom), supaya foto 2D
+    // tidak terlihat saat set panggung dikecilkan atau berdiri (poster di meja)
+    function penutupFoto() {
+      const mesh = bidang(FOTO.w + 0.006, FOTO.h + 0.006, teksturTirai(256, 280, false));
       mesh.position.set(FOTO.x, FOTO.y, 0.001);
       return mesh;
+    }
+
+    // titik keterangan menempel ke permukaan kostum: cari titik mesh terdepan di letak bagian itu (pose diam)
+    function pasangTitikKeterangan(model) {
+      model.updateMatrixWorld(true);
+      const keModel = new THREE.Matrix4().copy(model.matrixWorld).invert();
+      const mesh = [];
+      const p = new THREE.Vector3();
+      const min = new THREE.Vector3(Infinity, Infinity, Infinity), max = min.clone().negate();
+      model.traverse((o) => {
+        if (!o.isSkinnedMesh) return;
+        const pos = o.geometry.attributes.position;
+        const m = new THREE.Matrix4().multiplyMatrices(keModel, o.matrixWorld);
+        const xyz = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+          p.fromBufferAttribute(pos, i).applyMatrix4(m);
+          xyz.set([p.x, p.y, p.z], i * 3);
+          min.min(p); max.max(p);
+        }
+        mesh.push({ o, xyz, bahan: o.material.name });
+      });
+      const tinggi = max.y - min.y, R = 0.018 * tinggi;
+      for (const k of KETERANGAN) {
+        // letak di gambar sumber -> koordinat model (tampak depan, model menghadap +Z)
+        const tx = min.x + (k.titik[0] - SILUET.x0) / (SILUET.x1 - SILUET.x0) * (max.x - min.x);
+        const ty = max.y - (k.titik[1] - SILUET.y0) / (SILUET.y1 - SILUET.y0) * tinggi;
+        let terbaik = null, nilai = -Infinity, dekat = null, jarakDekat = Infinity;
+        for (const m of mesh) {
+          if (k.bahan && m.bahan !== k.bahan) continue;
+          for (let i = 0; i < m.xyz.length / 3; i++) {
+            const d = Math.hypot(m.xyz[i * 3] - tx, m.xyz[i * 3 + 1] - ty);
+            if (d < jarakDekat) { jarakDekat = d; dekat = { m, i }; }
+            if (d > R) continue;
+            const z = k.belakang ? -m.xyz[i * 3 + 2] : m.xyz[i * 3 + 2];
+            if (z > nilai) { nilai = z; terbaik = { m, i }; }
+          }
+        }
+        const t = terbaik || dekat;
+        if (t) { k.obj = t.m.o; k.vi = t.i; }
+      }
     }
 
     function aturMode(panggung) {
@@ -364,7 +528,7 @@
       scene.add(pinggir);
 
       const anchor = mindar.addAnchor(0);
-      const latar = latarPanggung();
+      const latar = penutupFoto();
       latar.visible = false;
       anchor.group.add(latar);
       const panggung = new THREE.Group();
@@ -426,7 +590,7 @@
           }
         });
         model.scale.setScalar(SKALA);
-        panggung.add(lantaiPanggung());
+        panggung.add(setPanggung());
         // penari + bayangan dalam satu grup supaya bisa diputar di tempat (poros = titik berdiri)
         penari = new THREE.Group();
         penari.position.z = MAJU;
@@ -435,32 +599,38 @@
         bayangan.position.z = 0;
         penari.add(bayangan);
         panggung.add(penari);
-        // tulang untuk titik keterangan (GLTFLoader membuang titik dari nama: hand.R -> handR)
+        pasangTitikKeterangan(model);
         for (const k of KETERANGAN) {
-          k.obj = model.getObjectByName(k.tulang);
           k.el = document.createElement("button");
           k.el.className = "pil";
           k.el.innerHTML = `${k.label} <i>i</i>`;
           k.el.onclick = () => bukaInfo(k);
           $("pil-pil").append(k.el);
-          k.garis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-          k.titik = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-          k.titik.setAttribute("r", "3.5");
-          $("garis").append(k.garis, k.titik);
+          k.bayang = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+          k.bayang.setAttribute("class", "bayang");
+          k.garis = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+          k.garis.setAttribute("class", "emas");
+          $("garis").append(k.bayang, k.garis);
+          k.titik = document.createElement("div");
+          k.titik.className = "titik";
+          $("pil-pil").append(k.titik);
         }
         aturMode(panggung);
         $("mode").onclick = () => { mode = mode === "dinding" ? "meja" : "dinding"; aturMode(panggung); };
         mixer = new THREE.AnimationMixer(model);
         mixer.clipAction(gltf.animations[0]).play();
         if (param.has("t")) mixer.setTime(parseFloat(param.get("t")) || 0);
-        if (param.has("jeda")) mixer.timeScale = 0;
+        if (param.has("jeda")) { mixer.timeScale = 0; window.__uji = { panggung, anchor, camera }; } // pengait uji
         $("muat").hidden = true;
         panggung.visible = true;
         latar.visible = true;
       });
 
       // zoom (cubit dua jari / scroll) dan putar penari (geser satu jari / drag mouse); ketuk 2x = ulang
-      let zoom = 1, putar = 0, putarTarget = 0;
+      let zoom = 1, zoomTarget = parseFloat(param.get("zoom")) || 1, putar = 0, putarTarget = 0;
+      // putar hanya setelah jari benar-benar menggeser; setelah mencubit, putar dikunci sampai semua jari lepas
+      const AMBANG_PUTAR = 12;
+      let bolehPutar = false, habisCubit = false;
       const ZOOM_MIN = 0.6, ZOOM_MAKS = 3;
       const sentuh = new Map();
       let jarakAwal = 0, zoomAwal = 1, xAwal = 0, putarAwal = 0, ketukTerakhir = 0;
@@ -469,11 +639,11 @@
       area.addEventListener("pointerdown", (e) => {
         try { area.setPointerCapture(e.pointerId); } catch { /* sebagian browser menolak; tidak wajib */ }
         sentuh.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (sentuh.size === 2) { jarakAwal = jarak(); zoomAwal = zoom; }
+        if (sentuh.size === 2) { jarakAwal = jarak(); zoomAwal = zoomTarget; habisCubit = true; bolehPutar = false; }
         if (sentuh.size === 1) {
-          xAwal = e.clientX; putarAwal = putarTarget;
+          xAwal = e.clientX; putarAwal = putarTarget; bolehPutar = false; habisCubit = false;
           const kini = performance.now();
-          if (kini - ketukTerakhir < 300) { zoom = 1; putarTarget = 0; }
+          if (kini - ketukTerakhir < 300) { zoomTarget = 1; putarTarget = 0; }
           ketukTerakhir = kini;
         }
       });
@@ -481,21 +651,23 @@
         if (!sentuh.has(e.pointerId)) return;
         sentuh.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (sentuh.size === 2 && jarakAwal > 0) {
-          zoom = Math.min(ZOOM_MAKS, Math.max(ZOOM_MIN, zoomAwal * jarak() / jarakAwal));
-        } else if (sentuh.size === 1) {
-          putarTarget = putarAwal + (e.clientX - xAwal) / window.innerWidth * Math.PI * 2;
+          zoomTarget = Math.min(ZOOM_MAKS, Math.max(ZOOM_MIN, zoomAwal * jarak() / jarakAwal));
+        } else if (sentuh.size === 1 && !habisCubit) {
+          const dx = e.clientX - xAwal;
+          if (!bolehPutar && Math.abs(dx) > AMBANG_PUTAR) { bolehPutar = true; xAwal = e.clientX; }
+          if (bolehPutar) putarTarget = putarAwal + (e.clientX - xAwal) / window.innerWidth * Math.PI * 2;
         }
       });
       const lepas = (e) => {
         sentuh.delete(e.pointerId);
         if (sentuh.size < 2) jarakAwal = 0;
-        if (sentuh.size === 1) { const [p] = sentuh.values(); xAwal = p.x; putarAwal = putarTarget; }
+        if (sentuh.size === 0) habisCubit = false;
       };
       area.addEventListener("pointerup", lepas);
       area.addEventListener("pointercancel", lepas);
       area.addEventListener("wheel", (e) => {
         e.preventDefault();
-        zoom = Math.min(ZOOM_MAKS, Math.max(ZOOM_MIN, zoom * Math.exp(-e.deltaY * 0.0015)));
+        zoomTarget = Math.min(ZOOM_MAKS, Math.max(ZOOM_MIN, zoomTarget * Math.exp(-e.deltaY * 0.0015)));
       }, { passive: false });
       // cegah browser ikut zoom halaman saat dicubit
       document.addEventListener("gesturestart", (e) => e.preventDefault());
@@ -506,17 +678,30 @@
       $("label").onclick = () => {
         labelNyala = !labelNyala;
         $("label").setAttribute("aria-pressed", String(labelNyala));
-        if (!labelNyala) $("info").hidden = true;
+        if (!labelNyala) tutupInfo();
       };
-      $("tutup").onclick = () => { $("info").hidden = true; };
+      function tandai(aktif) {
+        for (const k of KETERANGAN) {
+          const ya = k === aktif;
+          k.el?.classList.toggle("aktif", ya);
+          k.titik?.classList.toggle("aktif", ya);
+          k.garis?.classList.toggle("aktif", ya);
+          k.bayang?.classList.toggle("aktif", ya);
+        }
+        $("pil-pil").classList.toggle("ada-aktif", !!aktif);
+        $("garis").classList.toggle("ada-aktif", !!aktif);
+      }
+      const tutupInfo = () => { $("info").hidden = true; tandai(null); };
+      $("tutup").onclick = tutupInfo;
       function bukaInfo(k) {
+        tandai(k);
         $("info-jenis").textContent = k.jenis;
         $("info-judul").textContent = k.judul;
         $("info-isi").textContent = k.isi;
         $("info").hidden = false;
       }
 
-      // posisikan pil & garis tiap frame: titik ikut tulang yang bergerak, pil tetap di samping penari
+      // posisikan pil & garis tiap frame: titik ikut kulit kostum yang bergerak, pil tetap di samping penari
       const v = new THREE.Vector3();
       function keLayar(vec, kotak) {
         vec.project(camera);
@@ -528,31 +713,38 @@
         $("pil-pil").hidden = !tampak;
         if (!tampak) return;
         const kotak = renderer.domElement.getBoundingClientRect();
-        const tinggiPil = 26; // jarak baris minimum (px) supaya 7 pil per sisi tidak bertumpuk saat poster tampak kecil
+        // jarak baris tetap rapat (26-34 px) dan kolom selalu muat di antara tepi atas dan tombol bawah,
+        // jadi saat di-zoom pil tidak merenggang keluar layar
+        const atasAman = 56, bawahAman = innerHeight - 92;
         for (const kiri of [true, false]) {
           // urutan di KETERANGAN = urutan baris dari atas ke bawah
           const kol = KETERANGAN.filter((k) => k.obj && (k.pil[0] < 0) === kiri);
           if (!kol.length) continue;
           for (const k of kol) {
-            k.obj.getWorldPosition(v);
-            panggung.worldToLocal(v);
-            v.x += k.geser[0]; v.y += k.geser[1]; v.z += k.geser[2];
-            [k.ax, k.ay] = keLayar(panggung.localToWorld(v), kotak);
+            k.obj.getVertexPosition(k.vi, v);
+            [k.ax, k.ay] = keLayar(v.applyMatrix4(k.obj.matrixWorld), kotak);
             v.set(k.pil[0], k.pil[1], MAJU);
             [k.px, k.py] = keLayar(panggung.localToWorld(v), kotak);
           }
           // baris direnggangkan di sekitar titik tengah kolom bila jaraknya kurang dari tinggiPil
-          const jarak = Math.max(tinggiPil, kol.length > 1 ? (kol.at(-1).py - kol[0].py) / (kol.length - 1) : 0);
-          const tengahY = (kol[0].py + kol.at(-1).py) / 2;
+          const alami = kol.length > 1 ? (kol.at(-1).py - kol[0].py) / (kol.length - 1) : 0;
+          const muat = kol.length > 1 ? (bawahAman - atasAman) / (kol.length - 1) : 0;
+          const jarak = Math.min(Math.max(alami, 26), 34, Math.max(muat, 22));
+          const separuh = (kol.length - 1) / 2 * jarak;
+          const tengahY = Math.min(Math.max((kol[0].py + kol.at(-1).py) / 2, atasAman + separuh), bawahAman - separuh);
           kol.forEach((k, i) => {
             const y = tengahY + (i - (kol.length - 1) / 2) * jarak;
             // 14 pil: di layar sempit pil digeser masuk supaya tidak terpotong tepi layar
             const lebar = k.el.offsetWidth;
             const x = Math.min(Math.max(kiri ? k.px - lebar : k.px, 6), innerWidth - lebar - 6);
             k.el.style.transform = `translate(${x}px, ${y}px) translate(0, -50%)`;
-            k.garis.setAttribute("x1", k.ax); k.garis.setAttribute("y1", k.ay);
-            k.garis.setAttribute("x2", kiri ? x + lebar : x); k.garis.setAttribute("y2", y);
-            k.titik.setAttribute("cx", k.ax); k.titik.setAttribute("cy", k.ay);
+            // garis bersudut: dari titik miring ke siku di depan pil, lalu lurus mendatar ke pil
+            const ujung = kiri ? x + lebar : x;
+            const siku = ujung + (kiri ? 14 : -14);
+            const titik = `${k.ax.toFixed(1)},${k.ay.toFixed(1)} ${siku.toFixed(1)},${y.toFixed(1)} ${ujung.toFixed(1)},${y.toFixed(1)}`;
+            k.bayang.setAttribute("points", titik);
+            k.garis.setAttribute("points", titik);
+            k.titik.style.transform = `translate(${k.ax}px, ${k.ay}px)`;
           });
         }
       }
@@ -570,7 +762,7 @@
         }
       };
       anchor.onTargetLost = () => {
-        $("petunjuk").hidden = false; terlihat = false; tampil = 0; $("info").hidden = true;
+        $("petunjuk").hidden = false; terlihat = false; tampil = 0; tutupInfo();
         terlihatPoster = false;
         aturMusik();
       };
@@ -600,6 +792,7 @@
         // muncul pelan: membesar dari 85% ke 100% dalam ~0.4 detik
         if (terlihat && tampil < 1) tampil = Math.min(1, tampil + dt / 0.4);
         const k = 0.85 + 0.15 * (1 - Math.pow(1 - tampil, 3));
+        zoom += (zoomTarget - zoom) * Math.min(1, dt * 14); // zoom halus
         panggung.scale.setScalar(k * zoom);
         putar += (putarTarget - putar) * Math.min(1, dt * 12); // putaran halus
         if (penari) penari.rotation.y = putar;

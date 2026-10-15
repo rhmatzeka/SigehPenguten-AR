@@ -4,7 +4,7 @@ Web AR untuk mengenalkan **Tari Sigeh Penguten**, tarian penyambutan tamu dari P
 Pindai QR di poster, arahkan kamera HP ke poster, lalu penari 3D berkostum adat Lampung muncul di atas
 panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keterangan bagian kostumnya.
 
-**Coba langsung:** <https://rhmatzeka.github.io/SigehPenguten-AR/>
+**Coba langsung:** <https://rhmatzeka.github.io/SigehPenguten-AR/> (cadangan: <https://tarisigehpenguten.vercel.app>)
 (buka di HP, lalu arahkan kamera ke [poster](poster/poster-tari-sigeh-qr.png))
 
 <p align="center">
@@ -14,10 +14,12 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 ## Fitur
 
 - **Tanpa install aplikasi**: cukup browser HP (Chrome di Android, Safari di iPhone).
-- **Penari 3D menari** di atas panggung setengah lingkaran bermotif tapis, gerakannya diambil dari video tari asli.
+- **Penari 3D menari** di panggung lengkap (tirai, hiasan atas, lantai setengah lingkaran bermotif tapis) yang ikut
+  membesar/mengecil saat di-zoom; gerakannya diambil dari video tari asli.
 - **Keterangan kostum**: 14 label (Nama Tarian, Siger, Bunga Hiasan Kepala, Anting-Anting, Sanggul, Kalung Papan Jajar,
   Bebe Usus Ayam, Tanggai, Pending, Baju Sesapur, Gelang Burung, Gelang Kano, Selendang Merah, Kain Tapis).
-  Garis penunjuknya ikut bergerak bersama penari, dan setiap label bisa diketuk untuk membaca penjelasannya.
+  Titiknya menempel di permukaan kostum dan ikut bergerak bersama penari; label yang diketuk disorot dan
+  menampilkan penjelasannya.
 - **Musik pengiring**: musik tari otomatis diputar saat poster terlihat dan berhenti saat kamera menjauh.
   Tombol **Musik** untuk mematikan/menyalakan.
 - **Zoom & putar**: cubit dua jari untuk zoom, geser satu jari untuk memutar penari, ketuk dua kali untuk
@@ -62,7 +64,8 @@ Semua langkah dijalankan dengan skrip di folder [`tools/`](tools/):
    itu ke permukaan depan model.
 3. **Video → gerakan**: `ekstrak_pose.py` mendeteksi 33 titik tubuh di setiap frame video, lalu
    `rapikan_pose.py` mengisi frame kosong, menghaluskan getaran, menempelkan kaki ke lantai, dan memakai pose
-   duduk bersimpuh saat penari duduk (kaki di video tertutup kain tapis).
+   duduk bersimpuh saat penari duduk (kaki di video tertutup kain tapis). Frame yang badannya terbaca berbalik
+   (MediaPipe salah menebak kedalaman, padahal penari tetap menghadap depan) diganti peralihan halus.
 4. **Rigging + animasi**: `rig_animasi.py` memasang 19 tulang otomatis dari titik tubuh di foto, membagi bobot
    kulit (rok dibuat ikut pinggul supaya tidak terbelah), mengganti tangan dengan tangan buatan berkuku
    tanggai emas (`tangan.py`), memasang gerakan dari video, lalu mengekspor GLB terkompresi.

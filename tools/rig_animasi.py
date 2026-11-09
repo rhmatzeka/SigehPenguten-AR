@@ -572,6 +572,68 @@ def tempel_lantai(arm, obj):
     print(f"tempel lantai (tulang): koreksi {t.min():.3f}..{t.max():.3f}")
 
 
+def buang_melar(arm, obj, langkah=8, batas=2.4):
+    """Periksa bentuk mesh selama tarian (tiap `langkah` frame): segitiga yang sisinya memanjang lebih dari
+    `batas` kali ukuran asal adalah kain/kulit yang bobotnya terbagi dua tulang dan tertarik jadi lembaran
+    melar (mis. renda lengan baju saat lengan direntang). Segitiga itu dibuang. Penyok (menyusut) dilaporkan
+    per tulang supaya kelihatan bagian mana yang masih bermasalah."""
+    sc = bpy.context.scene
+    me = obj.data
+    n_v = len(me.vertices)
+    rest = np.empty(n_v * 3)
+    me.vertices.foreach_get("co", rest)
+    rest = rest.reshape(-1, 3)
+    tri = np.array([p.vertices[:3] for p in me.polygons])
+    sisi = [(0, 1), (1, 2), (2, 0)]
+
+    def panjang(co):
+        return np.stack([np.linalg.norm(co[tri[:, a]] - co[tri[:, b]], axis=1) for a, b in sisi], axis=1)
+
+    L0 = np.maximum(panjang(rest), 1e-6)
+    melar = np.zeros(len(tri))
+    susut = np.ones(len(tri))
+    dg = bpy.context.evaluated_depsgraph_get()
+    for f in range(sc.frame_start, sc.frame_end + 1, langkah):
+        sc.frame_set(f)
+        ev = obj.evaluated_get(dg)
+        m = ev.to_mesh()
+        co = np.empty(len(m.vertices) * 3)
+        m.vertices.foreach_get("co", co)
+        ev.to_mesh_clear()
+        r_ = panjang(co.reshape(-1, 3)) / L0
+        melar = np.maximum(melar, r_.max(axis=1))
+        susut = np.minimum(susut, r_.min(axis=1))
+    # tulang dominan tiap titik untuk laporan
+    nama = {g.index: g.name for g in obj.vertex_groups}
+    dominan = []
+    for v in me.vertices:
+        g = max(v.groups, key=lambda g: g.weight, default=None)
+        dominan.append(nama[g.group] if g else "-")
+    def lapor(mask, judul):
+        hit = {}
+        for i in np.flatnonzero(mask):
+            b = dominan[tri[i, 0]]
+            hit[b] = hit.get(b, 0) + 1
+        print(judul, int(mask.sum()), sorted(hit.items(), key=lambda x: -x[1])[:8])
+    lapor(melar > batas, f"segitiga melar >{batas}x:")
+    lapor(susut < 0.35, "segitiga penyok <0.35x:")
+    # hanya lengan & badan atas: rok tapis memang melebar saat bersimpuh (dirapikan shader web), jangan dibuang
+    atas_ = {"chest", "neck", "shoulder.L", "shoulder.R", "upper_arm.L", "upper_arm.R",
+             "forearm.L", "forearm.R", "hand.L", "hand.R"}
+    z_pinggang = arm.data.bones["spine"].tail_local.z
+    boleh = np.array([all(dominan[v] in atas_ for v in t3) and rest[t3, 2].min() > z_pinggang for t3 in tri])
+    hapus = (melar > batas) & boleh
+    lapor(hapus, "dibuang (lengan & badan atas):")
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.faces.ensure_lookup_table()
+    buang = [bm.faces[i] for i in np.flatnonzero(hapus)]
+    bmesh.ops.delete(bm, geom=buang, context="FACES_ONLY")
+    bm.to_mesh(me)
+    bm.free()
+    sc.frame_set(sc.frame_start)
+
+
 def main():
     obj = siapkan_model()
     J = sendi_dari_foto(obj)
@@ -580,6 +642,7 @@ def main():
     pasang_bobot(obj, arm, J)
     pasang_gerak(arm, J)
     tempel_lantai(arm, obj)
+    buang_melar(arm, obj)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_animations=True,
                               export_force_sampling=True, export_optimize_animation_size=True,

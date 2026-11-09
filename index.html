@@ -442,9 +442,12 @@
 
     // tepak sirih: kotak emas berukir bertingkat bermahkota siger kecil berisi bunga, dibawa penari di depan dada lalu
     // ditaruh di lantai saat duduk (sesuai video tari). Satuan: lebar badan tepak = 1, alas di y = 0.
+    // jadwal sama dengan tools/gerak_bersih.py: tangan sampai di lantai 18.4 dtk, lepas 18.9 dtk;
+    // 2.3 dtk sebelum akhir tangan kembali di tepak lalu mengangkatnya, jadi ulangan tari tersambung
     const TEPAK = {
-      turun: 17.4,      // detik mulai menaruh: tangan model tidak sampai serendah tangan di video, jadi tepak
-      lepas: 18.9,      // dituntun pelan ke lantai sampai dilepas (tangan menyentuh lantai 18.3-18.9)
+      turun: 17.6,      // tepak dituntun pelan sampai alasnya menyentuh lantai
+      lepas: 18.9,
+      ambil: 2.2,       // detik sebelum akhir: tepak dipegang lagi
       pegang: 0.32,     // tinggi titik pegang dari alas (tangan memegang sisi badan berukir)
       lebar: 0.72,      // lebar tepak terhadap jarak kedua pergelangan saat memegang
     };
@@ -501,7 +504,8 @@
       const g = new THREE.Group();
       // emas tidak sepenuhnya logam supaya sisi bawah yang tidak memantulkan langit tidak tampak hitam
       const emas = new THREE.MeshStandardMaterial({ color: 0xc98f22, metalness: 0.7, roughness: 0.3, envMapIntensity: 1, side: THREE.DoubleSide });
-      const emasTua = new THREE.MeshStandardMaterial({ color: 0x9c6a1c, metalness: 0.6, roughness: 0.42, envMapIntensity: 0.9 });
+      // sisi bawah alas tidak kena lampu: beri cahaya diri sedikit supaya tidak tampak hitam dari bawah
+      const emasTua = new THREE.MeshStandardMaterial({ color: 0x9c6a1c, metalness: 0.6, roughness: 0.42, envMapIntensity: 0.9, emissive: 0x4a2c08 });
       // diwarnai emas pekat: di bawah lampu panggung ukiran tidak tampak krem pucat
       const ukir = (tekstur) => new THREE.MeshStandardMaterial({ map: tekstur, color: 0xe3a536, metalness: 0.4, roughness: 0.45, envMapIntensity: 0.8 });
       const ukirBadan = ukir(teksturUkiran(512, 216, 3));
@@ -563,25 +567,30 @@
       };
     }
     // tiap frame: sebelum dilepas tepak menempel di antara tangan (alasnya tidak menembus lantai),
-    // sesudahnya diam di lantai. Di ujung putaran tepak mengecil lalu muncul lagi di tangan saat tari diulang.
+    // sesudahnya diam di lantai, lalu di akhir diambil lagi dan dibawa berdiri (sama dengan awal tarian).
+    const halus = (k) => { k = Math.min(1, Math.max(0, k)); return k * k * (3 - 2 * k); };
     function aturTepak(tp, penari, t, durasi) {
+      const ambil = durasi - TEPAK.ambil;
       let pos, arah;
-      if (t < TEPAK.lepas) {
+      if (t < TEPAK.lepas || t >= ambil) {
         const h = letakTangan(tp, penari);
         pos = h.tengah;
         pos.y = Math.max(0, pos.y - TEPAK.pegang * tp.ukuran);
-        const k = Math.min(1, Math.max(0, (t - TEPAK.turun) / (TEPAK.lepas - TEPAK.turun)));
-        pos.y *= 1 - k * k * (3 - 2 * k);
         arah = h.arah;
+        if (t < TEPAK.lepas) {
+          pos.y *= 1 - halus((t - TEPAK.turun) / (TEPAK.lepas - TEPAK.turun));
+        } else {
+          // dari letak di lantai berpindah mulus ke genggaman (posisi tangan bisa beda sedikit)
+          const k = halus((t - ambil) / 0.35);
+          pos.lerp(tp.lantai.pos, 1 - k);
+          arah = tp.lantai.arah + (arah - tp.lantai.arah) * k;
+        }
       } else {
         pos = tp.lantai.pos;
         arah = tp.lantai.arah;
       }
       tp.obj.position.copy(pos);
       tp.obj.rotation.y = arah;
-      const muncul = Math.max(0, Math.min(1, t / 0.4, (durasi - t) / 0.5));
-      tp.obj.scale.setScalar(tp.ukuran * (1 - Math.pow(1 - muncul, 3)));
-      tp.obj.visible = muncul > 0.001;
     }
 
     // ukuran set panggung (satuan panggung; lebar poster = 1). Semua bagian set ada di grup `panggung`,
@@ -978,13 +987,14 @@
         penari.add(tepak.obj);
         mixer.setTime(0.5);
         tepak.ukuran = TEPAK.lebar * letakTangan(tepak, penari).jarak;
+        tepak.obj.scale.setScalar(tepak.ukuran);
         mixer.setTime(TEPAK.lepas);
         const taruh = letakTangan(tepak, penari);
         taruh.tengah.y = 0;
         tepak.lantai = { pos: taruh.tengah, arah: taruh.arah };
         mixer.setTime(0);
         if (param.has("t")) mixer.setTime(parseFloat(param.get("t")) || 0);
-        if (param.has("jeda")) { mixer.timeScale = 0; window.__uji = { panggung, anchor, camera }; } // pengait uji
+        if (param.has("jeda")) { mixer.timeScale = 0; window.__uji = { panggung, anchor, camera, mixer }; } // pengait uji
         $("muat").hidden = true;
         panggung.visible = true;
         latar.visible = true;

@@ -22,6 +22,7 @@ from mathutils.kdtree import KDTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tangan import ganti_tangan  # noqa: E402
+from lengan import ganti_lengan  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 SRC, POSE_JSON, GERAK, OUT = argv[:4]
@@ -228,6 +229,8 @@ def pasang_bobot(obj, arm, J):
     # tangan hasil generator cacat (jari menyatu) -> ganti tangan buatan dengan tanggai emas
     kulit = tuple(c ** 2.2 for c in (0.88, 0.70, 0.62))  # sRGB -> linear
     ganti_tangan(obj, arm, J, (IX_L, IX_R), (PK_L, PK_R), kulit)
+    # lengan hasil generator menyatu dengan baju (sobek/melar/putus saat bergerak) -> lengan buatan utuh
+    ganti_lengan(obj, arm)
 
     obj.parent = arm
     mod = obj.modifiers.new("Armature", "ARMATURE")
@@ -633,10 +636,12 @@ def buang_melar(arm, obj, langkah=8, batas=2.4):
     z_pinggang = arm.data.bones["spine"].tail_local.z
     rantai_lengan = {g.index for g in obj.vertex_groups if g.name.split(".")[0] in ("shoulder", "upper_arm", "forearm", "hand")}
     w_lengan = np.array([sum(g.weight for g in v.groups if g.group in rantai_lengan) for v in me.vertices])
+    buatan = {i for i, m in enumerate(me.materials) if m and m.name.startswith(("renda_lengan", "kulit_tangan", "emas_"))}
+    mat_tri = np.array([p.material_index for p in me.polygons])
     boleh = np.array([(all(dominan[v] in atas_ for v in t3) and rest[t3, 2].min() > z_pinggang)
                       # kain badan/perut yang tersangkut lengan (bobot campuran) -> lembaran dari siku ke pinggang
                       or w_lengan[t3].max() > 0.15 for t3 in tri])
-    hapus = (melar > batas) & boleh
+    hapus = (melar > batas) & boleh & ~np.isin(mat_tri, list(buatan))  # lengan & tangan buatan tidak disentuh
     lapor(hapus, "dibuang (lengan & badan atas):")
     bm = bmesh.new()
     bm.from_mesh(me)

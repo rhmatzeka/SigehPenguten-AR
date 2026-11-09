@@ -73,7 +73,9 @@ Semua langkah dijalankan dengan skrip di folder [`tools/`](tools/):
    duduk bersimpuh saat penari duduk (kaki di video tertutup kain tapis).
    `gerak_bersih.py` lalu menyusun ulang gerak per bagian tubuh supaya wajar: kaki berdiri tegak/bersimpuh
    menempel lantai, badan tidak miring-miring, tangan dihaluskan, dan urutan membawa tepak -> bersimpuh ->
-   menaruh tepak -> menari -> mengambil tepak lalu berdiri (ulangan tari tersambung mulus). Frame yang badannya terbaca berbalik
+   menaruh tepak -> menari -> mengambil tepak lalu berdiri (ulangan tari tersambung mulus).
+   Lengan hasil generator menyatu dengan baju (sobek/putus saat bergerak), jadi `lengan.py` menggantinya dengan
+   lengan buatan utuh: lengan baju renda dari bahu sampai pergelangan, kerut di siku, gelang emas di lengan atas. Frame yang badannya terbaca berbalik
    (MediaPipe salah menebak kedalaman, padahal penari tetap menghadap depan) diganti peralihan halus.
 4. **Rigging + animasi**: `rig_animasi.py` memasang 19 tulang otomatis dari titik tubuh di foto, membagi bobot
    kulit (rok dibuat ikut pinggul supaya tidak terbelah), mengganti tangan dengan tangan buatan berkuku

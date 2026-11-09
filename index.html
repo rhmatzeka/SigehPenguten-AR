@@ -451,6 +451,29 @@
       pegang: 0.32,     // tinggi titik pegang dari alas (tangan memegang sisi badan berukir)
       lebar: 0.72,      // lebar tepak terhadap jarak kedua pergelangan saat memegang
     };
+    // renda putih lengan baju: dasar krem-putih, bunga kecil abu-abu muda berulang dan titik-titik lubang renda
+    let _renda = null;
+    function teksturRenda() {
+      if (_renda) return _renda;
+      _renda = kanvas(128, 128, (g, w, h) => {
+        g.fillStyle = "#f5f1ea"; g.fillRect(0, 0, w, h);
+        g.strokeStyle = "rgba(150,140,130,0.55)"; g.lineWidth = 2;
+        for (const [cx, cy] of [[32, 32], [96, 96]]) {
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            g.beginPath(); g.ellipse(cx + Math.cos(a) * 9, cy + Math.sin(a) * 9, 7, 4, a, 0, Math.PI * 2); g.stroke();
+          }
+          g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.stroke();
+        }
+        g.fillStyle = "rgba(170,160,150,0.5)";
+        for (let y = 8; y < h; y += 16) for (let x = (y / 16) % 2 ? 8 : 0; x < w; x += 16) {
+          if (Math.hypot(x - 32, y - 32) > 22 && Math.hypot(x - 96, y - 96) > 22) { g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); }
+        }
+      });
+      _renda.wrapS = _renda.wrapT = THREE.RepeatWrapping;
+      return _renda;
+    }
+
     // ukiran emas tepak: bidang emas berbingkai cokelat dengan sulur lekuk (pakis) seperti ukiran di video
     function teksturUkiran(w, h, sulur) {
       return kanvas(w, h, (g) => {
@@ -947,6 +970,16 @@
             m.emissiveMap = m.map;
             m.emissiveIntensity = 0.35;
             m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          } else if (m.name.startsWith("renda_")) {
+            // lengan baju buatan & tambalan badan: renda putih bermotif bunga kecil, senada dengan baju di tekstur foto
+            m.map = teksturRenda();
+            m.color.set(0xffffff);
+            m.roughness = 0.75;
+            m.metalness = 0;
+            m.emissive = new THREE.Color(0xffffff);
+            m.emissiveMap = m.map;
+            m.emissiveIntensity = 0.3;
+            m.side = THREE.DoubleSide;
           } else if (m.name === "kulit_tangan") {
             // tangan buatan tanpa tekstur: samakan dengan warna kulit wajah di tekstur foto (tidak abu-abu/kayu)
             m.color.set(0xf0c0a4);

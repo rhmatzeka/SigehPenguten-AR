@@ -440,58 +440,111 @@
       return t;
     }
 
-    // tepak sirih: wadah emas segi delapan berisi daun sirih dan bunga, dibawa penari di depan dada lalu
+    // tepak sirih: kotak emas berukir bertingkat bermahkota siger kecil berisi bunga, dibawa penari di depan dada lalu
     // ditaruh di lantai saat duduk (sesuai video tari). Satuan: lebar badan tepak = 1, alas di y = 0.
     const TEPAK = {
       turun: 17.4,      // detik mulai menaruh: tangan model tidak sampai serendah tangan di video, jadi tepak
       lepas: 18.9,      // dituntun pelan ke lantai sampai dilepas (tangan menyentuh lantai 18.3-18.9)
-      pegang: 0.5,      // tinggi titik pegang dari alas (tangan memegang sisi badan tepak, tepak setinggi perut)
-      lebar: 0.78,      // lebar tepak terhadap jarak kedua pergelangan saat memegang
+      pegang: 0.32,     // tinggi titik pegang dari alas (tangan memegang sisi badan berukir)
+      lebar: 0.72,      // lebar tepak terhadap jarak kedua pergelangan saat memegang
     };
+    // ukiran emas tepak: bidang emas berbingkai cokelat dengan sulur lekuk (pakis) seperti ukiran di video
+    function teksturUkiran(w, h, sulur) {
+      return kanvas(w, h, (g) => {
+        const gr = g.createLinearGradient(0, 0, 0, h);
+        gr.addColorStop(0, "#e9b84e"); gr.addColorStop(0.5, "#c98d2a"); gr.addColorStop(1, "#8f5714");
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.strokeStyle = "#3a1c06"; g.lineCap = "round";
+        g.lineWidth = h * 0.05; g.strokeRect(h * 0.04, h * 0.04, w - h * 0.08, h - h * 0.08);
+        g.lineWidth = h * 0.018; g.strokeRect(h * 0.12, h * 0.12, w - h * 0.24, h - h * 0.24);
+        // pasangan sulur berhadapan (lekuk pakis) di sepanjang panel
+        const tinggi = h * 0.5, cy = h / 2, lebar = (w - h * 0.24) / sulur;
+        g.lineWidth = h * 0.04;
+        for (let i = 0; i < sulur; i++) {
+          const cx = h * 0.12 + lebar * (i + 0.5);
+          for (const arah of [-1, 1]) {
+            g.beginPath();
+            for (let a = 0; a <= Math.PI * 2.6; a += 0.12) {
+              const r = tinggi * 0.32 * (1 - a / (Math.PI * 3));
+              const x = cx + arah * (lebar * 0.22 + Math.cos(a) * r * 0.9);
+              const y = cy - Math.sin(a) * r * arah;
+              a === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+            }
+            g.stroke();
+          }
+          // kuncup di tengah pasangan sulur
+          g.beginPath(); g.moveTo(cx, cy - tinggi * 0.42); g.lineTo(cx + lebar * 0.06, cy); g.lineTo(cx, cy + tinggi * 0.42);
+          g.lineTo(cx - lebar * 0.06, cy); g.closePath(); g.fillStyle = "#3a1c06"; g.fill();
+        }
+      });
+    }
+
+    // siger kecil di puncak tepak: foto siger asli penari (belahan kanan dicerminkan, tools/siger_tepak.py)
+    // ditempel pada lembaran melengkung, seperti siger sungguhan yang berupa lempengan logam tipis melengkung
+    const SIGER_RASIO = 217 / 285; // tinggi/lebar assets/siger-tepak.webp
+    function sigerKecil(R, busur) {
+      const tex = new THREE.TextureLoader().load("assets/siger-tepak.webp");
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      // tinggi mengikuti lebar yang terlihat dari depan supaya siger tidak tampak gepeng
+      const tinggi = 2 * R * Math.sin(busur / 2) * SIGER_RASIO;
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, tinggi, 48, 1, true, -busur / 2, busur),
+        // warna foto sudah berisi cahaya & kilau emas aslinya: tampilkan apa adanya (tanpa lampu & tone mapping)
+        new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide, toneMapped: false }));
+      m.position.y = tinggi / 2; // alas siger di y = 0 grup
+      const g = new THREE.Group();
+      g.add(m);
+      return g;
+    }
+
     function buatTepak() {
       const g = new THREE.Group();
       // emas tidak sepenuhnya logam supaya sisi bawah yang tidak memantulkan langit tidak tampak hitam
-      const emas = new THREE.MeshStandardMaterial({ color: 0xe0b04a, metalness: 0.75, roughness: 0.32, envMapIntensity: 1.3 });
-      const emasTua = new THREE.MeshStandardMaterial({ color: 0xb8842a, metalness: 0.7, roughness: 0.4, envMapIntensity: 1.1 });
-      const motif = teksturTapis();
-      motif.repeat.set(4, 1.4);
-      const kain = new THREE.MeshStandardMaterial({ map: motif, roughness: 0.65, metalness: 0.1 });
-      const tabung = (rAtas, rBawah, tinggi, y, bahan, terbuka = false) => {
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(rAtas, rBawah, tinggi, 8, 1, terbuka), bahan);
+      const emas = new THREE.MeshStandardMaterial({ color: 0xc98f22, metalness: 0.7, roughness: 0.3, envMapIntensity: 1, side: THREE.DoubleSide });
+      const emasTua = new THREE.MeshStandardMaterial({ color: 0x9c6a1c, metalness: 0.6, roughness: 0.42, envMapIntensity: 0.9 });
+      // diwarnai emas pekat: di bawah lampu panggung ukiran tidak tampak krem pucat
+      const ukir = (tekstur) => new THREE.MeshStandardMaterial({ map: tekstur, color: 0xe3a536, metalness: 0.4, roughness: 0.45, envMapIntensity: 0.8 });
+      const ukirBadan = ukir(teksturUkiran(512, 216, 3));
+      const ukirAtas = ukir(teksturUkiran(512, 144, 3));
+      const kotak = (lebar, tinggi, y, bahan) => {
+        // sisi atas/bawah memakai emas polos, keempat sisi tegak memakai ukiran
+        const sisi = Array.isArray(bahan) ? bahan : [bahan, bahan, emasTua, emasTua, bahan, bahan];
+        const m = new THREE.Mesh(new THREE.BoxGeometry(lebar, tinggi, lebar), sisi);
         m.position.y = y + tinggi / 2;
-        m.rotation.y = Math.PI / 8; // sisi datar menghadap depan
         g.add(m);
         return m;
       };
-      tabung(0.4, 0.48, 0.09, 0, emas);          // kaki
-      tabung(0.34, 0.4, 0.06, 0.09, emasTua);    // leher kaki
-      tabung(0.47, 0.47, 0.04, 0.15, emas);      // lis bawah
-      tabung(0.5, 0.45, 0.36, 0.19, kain, true); // badan bermotif tapis
-      tabung(0.53, 0.53, 0.05, 0.55, emas);      // bibir atas
-      tabung(0.5, 0.5, 0.02, 0.6, emasTua);      // tutup dalam
-      // isi: gundukan daun sirih
-      const daun = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-        new THREE.MeshStandardMaterial({ color: 0x3f7a2a, roughness: 0.7 }));
-      daun.scale.y = 0.42;
-      daun.position.y = 0.6;
-      g.add(daun);
-      // bunga kuning dan merah di atas sirih (seperti tepak di video)
-      const n = 34;
-      const bunga = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.075, 0),
-        new THREE.MeshStandardMaterial({ roughness: 0.55 }), n);
-      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
-      const warna = [0xf6c21c, 0xf6c21c, 0xf39a12, 0xf6c21c, 0xc8201e];
+      kotak(1.08, 0.05, 0, emasTua);       // alas
+      kotak(1.02, 0.03, 0.05, emas);       // lis alas
+      kotak(1, 0.42, 0.08, ukirBadan);     // badan berukir
+      kotak(1.07, 0.04, 0.5, emas);        // lis atas badan
+      kotak(0.78, 0.2, 0.54, ukirAtas);    // tingkat kedua berukir
+      kotak(0.84, 0.035, 0.74, emas);      // lis tingkat kedua
+      // bunga kuning-oranye bergerombol di puncak, dipagari siger kecil
+      const n = 44, puncak = 0.775;
+      const bunga = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.062, 1),
+        // tanpa tone mapping supaya kuning-oranye bunga tidak memudar jadi krem
+        new THREE.MeshStandardMaterial({ roughness: 0.75, envMapIntensity: 0.4, toneMapped: false }), n);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sk = new THREE.Vector3(), p = new THREE.Vector3();
+      const warna = [0xe8a800, 0xd97800, 0xe8a800, 0xf5bd10, 0xc9480a]; // marigold kuning-oranye pekat
       for (let i = 0; i < n; i++) {
         const sudut = i * 2.399963;               // sebaran spiral emas (rata, tidak bergerombol)
-        const r = 0.4 * Math.sqrt((i + 0.5) / n);
-        const tinggi = 0.6 + 0.19 * Math.sqrt(Math.max(0, 1 - (r / 0.45) ** 2)) + 0.02;
-        p.set(Math.cos(sudut) * r, tinggi, Math.sin(sudut) * r);
+        const r = 0.3 * Math.sqrt((i + 0.5) / n);
+        p.set(Math.cos(sudut) * r, puncak + 0.08 + 0.2 * Math.sqrt(Math.max(0, 1 - (r / 0.32) ** 2)), Math.sin(sudut) * r);
         q.setFromEuler(new THREE.Euler(i * 1.3, i * 0.7, 0));
-        s.setScalar(0.8 + ((i * 37) % 10) / 25);
-        bunga.setMatrixAt(i, m4.compose(p, q, s));
+        sk.set(1, 0.7, 1).multiplyScalar(0.85 + ((i * 37) % 10) / 30);
+        bunga.setMatrixAt(i, m4.compose(p, q, sk));
         bunga.setColorAt(i, new THREE.Color(warna[i % warna.length]));
       }
       g.add(bunga);
+      const daun = new THREE.Mesh(new THREE.SphereGeometry(0.33, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0x2f5e1f, roughness: 0.7 }));
+      daun.scale.y = 0.6;
+      daun.position.y = puncak;
+      g.add(daun);
+      const siger = sigerKecil(0.4, 2.6);
+      siger.position.y = puncak;
+      g.add(siger);
       return g;
     }
 

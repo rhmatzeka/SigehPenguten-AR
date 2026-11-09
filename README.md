@@ -18,7 +18,8 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
   membesar/mengecil saat di-zoom; gerakannya diambil dari video tari asli.
 - **Tepak sirih**: seperti di video tari, penari membawa tepak (wadah emas berisi sirih dan bunga) di depan
   perut, lalu menaruhnya di lantai saat duduk (detik ±18) dan tepak tetap di depan penari sampai akhir tarian.
-  Tepak dibuat langsung dengan Three.js (tanpa file model tambahan) dan ditempelkan ke tulang tangan.
+  Tepak berupa kotak emas berukir bertingkat dengan siger kecil di puncaknya (siger diambil dari foto siger penari,
+  `tools/siger_tepak.py`, lalu dilengkungkan) dan rangkaian bunga; dibuat dengan Three.js dan ditempelkan ke tulang tangan.
 - **Keterangan kostum**: 14 label (Nama Tarian, Siger, Bunga Hiasan Kepala, Anting-Anting, Sanggul, Kalung Papan Jajar,
   Bebe Usus Ayam, Tanggai, Pending, Baju Sesapur, Gelang Burung, Gelang Kano, Selendang Merah, Kain Tapis).
   Titiknya menempel di permukaan kostum dan ikut bergerak bersama penari; label yang diketuk disorot dan

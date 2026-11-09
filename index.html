@@ -5,43 +5,173 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Tari Sigeh Penguten AR</title>
   <meta name="description" content="Arahkan kamera ke poster untuk melihat penari Tari Sigeh Penguten dalam 3D.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Poppins:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css">
   <style>
-    :root { --bg: #f8d7b0; --card: #fdf6dc; --ink: #2b1a0a; --muted: #6b5233; --accent: #b8862f; }
+    :root {
+      --oranye: #c97f1a; --oranye-tua: #a8650f; --card: #fdf6dc; --krem: #f6e9c4; --ink: #2b1a0a;
+      --muted: #6b5233; --accent: #b8862f; --emas: #f1c96b; --merah: #a3191c;
+      --serif: "DM Serif Display", Georgia, "Times New Roman", serif;
+      --sans: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--ink); }
-    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { font-family: var(--sans); -webkit-font-smoothing: antialiased; }
     #ar { position: fixed; inset: 0; }
-    .layar {
-      position: fixed; inset: 0; display: grid; place-items: center; padding: 16px;
-      background: var(--bg); z-index: 10;
-    }
-    .kartu {
-      background: var(--card); border-radius: 24px; padding: 28px 22px; max-width: 420px; width: 100%;
-      text-align: center; box-shadow: 0 8px 24px rgba(43, 26, 10, .12);
-    }
-    h1 { font-family: Georgia, "Times New Roman", serif; margin: 0 0 4px; font-size: 1.9rem; line-height: 1.15; }
-    .sub { margin: 0 0 20px; font-weight: 600; font-size: .95rem; }
-    ol { text-align: left; margin: 0 0 22px; padding-left: 1.3em; line-height: 1.55; color: var(--muted); }
     button {
       font: inherit; font-weight: 700; border: 0; border-radius: 999px; cursor: pointer;
       background: var(--ink); color: var(--card); padding: 14px 28px; font-size: 1.05rem;
     }
     button:disabled { opacity: .5; cursor: progress; }
-    .kecil { margin-top: 14px; font-size: .8rem; color: var(--muted); }
-    .galat { color: #9b1c1c; font-weight: 600; margin-top: 14px; }
+    button:focus-visible { outline: 3px solid var(--emas); outline-offset: 2px; }
+
+    /* ---------- layar awal: ikut gaya poster (bingkai oranye, kertas krem) ---------- */
+    .layar {
+      position: fixed; inset: 0; z-index: 10; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      background:
+        radial-gradient(120% 60% at 50% 0%, #dc9532 0%, transparent 60%),
+        var(--oranye);
+      padding: calc(16px + env(safe-area-inset-top)) 16px 0;
+    }
+    .kertas {
+      position: relative; max-width: 440px; margin: 0 auto; background: var(--card);
+      border-radius: 28px; padding: 26px 20px 24px; box-shadow: 0 14px 40px rgba(60, 30, 0, .28);
+    }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 5px 12px;
+      border-radius: 999px; background: var(--ink); color: var(--emas);
+      font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    }
+    .hero { text-align: center; }
+    .hero h1 {
+      font-family: var(--serif); font-weight: 400; margin: 0; font-size: clamp(2.1rem, 10vw, 2.7rem);
+      line-height: 1.02; letter-spacing: -.01em;
+    }
+    .hero .sub { margin: 8px 0 0; font-weight: 700; font-size: .88rem; text-wrap: balance; }
+    /* bingkai lengkung ala gerbang, penari keluar sedikit dari bingkai */
+    .bingkai {
+      position: relative; margin: 52px auto 0; width: min(74%, 260px); aspect-ratio: 4 / 5;
+      border-radius: 999px 999px 22px 22px; border: 3px solid var(--ink);
+      background:
+        radial-gradient(70% 55% at 50% 38%, #ffe7a6 0%, #f3b85a 45%, var(--oranye) 100%);
+      box-shadow: inset 0 0 0 6px var(--card), inset 0 0 0 8px var(--accent);
+      overflow: visible;
+    }
+    .bingkai img {
+      position: absolute; left: 50%; bottom: 14px; height: 112%; width: auto; max-width: none; transform: translateX(-50%);
+      filter: drop-shadow(0 10px 14px rgba(60, 25, 0, .35));
+    }
+    .bingkai::after { /* lantai panggung */
+      content: ""; position: absolute; left: 10%; right: 10%; bottom: 6px; height: 14px; border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(60, 25, 0, .35), transparent); z-index: -0;
+    }
+    /* pita motif tapis: segitiga merah-hitam diapit garis emas */
+    .tapis {
+      height: 22px; margin: 22px -20px; border-block: 3px solid var(--accent);
+      background-color: var(--ink);
+      background-image:
+        linear-gradient(45deg, var(--merah) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--merah) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--emas) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--emas) 75%);
+      background-size: 16px 16px; background-position: 0 0, 0 0, 0 0, 0 0;
+    }
+    .bagian h2 {
+      display: flex; align-items: center; gap: 8px; margin: 0 0 10px;
+      font-family: var(--serif); font-weight: 400; font-size: 1.45rem; line-height: 1.1;
+    }
+    .bagian h2 i {
+      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+      background: var(--krem); color: var(--merah); font-size: 18px; flex: none;
+    }
+    .bagian p { margin: 0; line-height: 1.7; font-size: .93rem; color: #3d2a14; }
+    /* teks paragraf rata kiri-kanan */
+    .bagian p, #info p.isi { text-align: justify; text-justify: inter-word; hyphens: auto; -webkit-hyphens: auto; }
+    .ciri { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+    .ciri li {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+      background: var(--krem); border: 1.5px solid #e6cf97; font-size: .8rem; font-weight: 600;
+    }
+    .ciri li i { color: var(--merah); font-size: 15px; }
+    .langkah { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: l; }
+    .langkah li {
+      counter-increment: l; display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start;
+      font-size: .9rem; line-height: 1.55; color: var(--muted);
+    }
+    .langkah li::before {
+      content: counter(l); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+      background: var(--ink); color: var(--emas); font-family: var(--serif); font-size: 1.05rem;
+    }
+    .langkah b { color: var(--ink); }
+    /* kartu pengembang */
+    .pengembang {
+      margin-top: 22px; border-radius: 20px; padding: 18px; color: var(--card);
+      background: linear-gradient(160deg, #3a2410, var(--ink) 60%);
+      box-shadow: inset 0 0 0 1.5px rgba(241, 201, 107, .35);
+    }
+    .pengembang .kepala { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .inisial {
+      flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+      background: radial-gradient(circle at 35% 30%, #fff3c4, var(--emas) 50%, var(--accent));
+      color: var(--ink); font-family: var(--serif); font-size: 1.35rem; border: 2px solid var(--card);
+    }
+    .pengembang .label-kecil { margin: 0 0 2px; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--emas); font-weight: 600; }
+    .pengembang .nama { margin: 0; font-family: var(--serif); font-size: 1.22rem; line-height: 1.2; }
+    .pengembang dl { margin: 0; display: grid; gap: 8px; }
+    .pengembang dl div {
+      display: grid; grid-template-columns: 20px 46px 1fr; align-items: center; gap: 8px;
+      padding: 9px 12px; border-radius: 12px; background: rgba(253, 246, 220, .07); font-size: .86rem;
+    }
+    .pengembang dt { color: #d9c49a; font-weight: 500; }
+    .pengembang dd { margin: 0; font-weight: 600; }
+    .pengembang dl i { color: var(--emas); font-size: 17px; }
+    .kecil { margin: 16px 0 0; font-size: .78rem; color: var(--muted); text-align: center; }
+    /* tombol mulai menempel di bawah layar */
+    .aksi {
+      position: sticky; bottom: 0; max-width: 440px; margin: 0 auto; z-index: 2;
+      padding: 18px 0 calc(16px + env(safe-area-inset-bottom));
+      background: linear-gradient(to top, var(--oranye) 65%, transparent);
+    }
+    #mulai {
+      width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 16px 24px; font-size: 1.05rem; box-shadow: 0 8px 22px rgba(60, 25, 0, .35);
+    }
+    #mulai i { font-size: 22px; color: var(--emas); }
+    .galat {
+      color: #fff; background: #8a1414; font-weight: 600; margin: 0 0 10px; padding: 10px 14px;
+      border-radius: 12px; font-size: .88rem; line-height: 1.45;
+    }
+    /* muncul bertahap */
+    .naik { animation: naik .6s cubic-bezier(.2, .8, .2, 1) both; }
+    .naik:nth-child(2) { animation-delay: .06s; } .naik:nth-child(3) { animation-delay: .12s; }
+    .naik:nth-child(4) { animation-delay: .18s; } .naik:nth-child(5) { animation-delay: .24s; }
+    .naik:nth-child(6) { animation-delay: .3s; } .naik:nth-child(7) { animation-delay: .36s; }
+    @keyframes naik { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .naik { animation: none; } }
     #petunjuk, #muat {
       position: fixed; left: 50%; transform: translateX(-50%); z-index: 5;
       background: rgba(253, 246, 220, .92); border-radius: 999px; padding: 10px 18px;
       font-weight: 600; font-size: .95rem; white-space: nowrap; pointer-events: none;
     }
-    #petunjuk { bottom: calc(88px + env(safe-area-inset-bottom)); }
+    #petunjuk { bottom: calc(100px + env(safe-area-inset-bottom)); }
     #muat { top: calc(16px + env(safe-area-inset-top)); }
+    /* bilah alat: ikon + teks kecil, muat 4 tombol di HP 320px */
     #alat {
-      position: fixed; z-index: 6; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%;
-      transform: translateX(-50%); display: flex; gap: 8px;
+      position: fixed; z-index: 6; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%;
+      transform: translateX(-50%); display: flex; gap: 2px; padding: 5px; border-radius: 22px;
+      background: rgba(43, 26, 10, .88); box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+      border: 1px solid rgba(241, 201, 107, .3); backdrop-filter: blur(6px);
     }
-    #alat button { background: rgba(43, 26, 10, .85); padding: 11px 16px; font-size: .85rem; white-space: nowrap; }
-    #alat button[aria-pressed="true"] { background: #b8862f; color: #2b1a0a; }
+    #alat button {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 70px;
+      padding: 8px 6px 7px; border-radius: 17px; background: transparent; color: #f3e6c4;
+      font-size: .68rem; font-weight: 600; white-space: nowrap; transition: background .2s, color .2s;
+    }
+    #alat button i { font-size: 21px; }
+    #alat button[aria-pressed="true"] { background: var(--accent); color: var(--ink); }
     /* keterangan: pil berlabel + garis penunjuk ke bagian tubuh penari */
     #garis { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
     /* garis penunjuk bersudut: lapisan gelap di bawah supaya tetap terbaca di latar terang maupun gelap */
@@ -78,14 +208,31 @@
     }
     #info {
       position: fixed; z-index: 7; left: 50%; transform: translateX(-50%);
-      bottom: calc(78px + env(safe-area-inset-bottom)); width: min(92vw, 420px);
+      bottom: calc(92px + env(safe-area-inset-bottom)); width: min(92vw, 420px);
       background: var(--card); border-radius: 18px; padding: 16px 18px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
       border-top: 4px solid #b8862f;
     }
-    #info h2 { margin: 0 28px 2px 0; font-family: Georgia, serif; font-size: 1.15rem; }
+    #info h2 { margin: 0 28px 2px 0; font-family: var(--serif); font-weight: 400; font-size: 1.3rem; }
     #info .jenis { margin: 0 0 8px; font-size: .78rem; font-weight: 700; color: #b8862f; text-transform: uppercase; letter-spacing: .04em; }
     #info p.isi { margin: 0; line-height: 1.5; font-size: .92rem; color: #3d2a14; }
-    #tutup { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; padding: 0; font-size: 1rem; background: #ead9b8; color: var(--ink); }
+    .tutup {
+      position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; padding: 0;
+      display: grid; place-items: center; font-size: 16px; background: #ead9b8; color: var(--ink);
+    }
+    /* lembar "Tentang" di layar AR */
+    #tentang {
+      position: fixed; z-index: 8; left: 50%; transform: translateX(-50%);
+      bottom: calc(92px + env(safe-area-inset-bottom)); width: min(92vw, 420px);
+      max-height: calc(100% - 140px - env(safe-area-inset-bottom) - env(safe-area-inset-top)); overflow-y: auto scrollbar-width: thin; scrollbar-color: #d8bf86 transparent;
+      background: var(--card); border-radius: 22px; padding: 20px 18px 18px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, .45); border-top: 5px solid var(--accent);
+      animation: naik .35s cubic-bezier(.2, .8, .2, 1);
+    }
+    #tentang .jenis { margin: 0 0 4px; font-size: .72rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .08em; }
+    #tentang h2 { margin: 0 36px 10px 0; font-family: var(--serif); font-weight: 400; font-size: 1.5rem; line-height: 1.1; }
+    #tentang .bagian p { font-size: .9rem; }
+    #tentang .tapis { margin: 18px -18px; height: 16px; background-size: 12px 12px; }
+    #tentang .pengembang { margin-top: 0; }
     #ar, #ar canvas, #ar video { touch-action: none; }
     #gestur {
       position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);
@@ -109,17 +256,60 @@
   <div id="ar"></div>
 
   <section class="layar" id="awal">
-    <div class="kartu">
-      <h1>Tari Sigeh Penguten</h1>
-      <p class="sub">Tarian Tradisional Provinsi Lampung</p>
-      <ol>
-        <li>Tekan <b>Mulai AR</b> lalu izinkan kamera.</li>
-        <li>Arahkan kamera ke poster sampai seluruh poster terlihat.</li>
-        <li>Penari akan muncul dan menari di atas poster. Ketuk label untuk membaca keterangan.</li>
-      </ol>
-      <button id="mulai">Mulai AR</button>
+    <article class="kertas">
+      <header class="hero naik">
+        <p class="eyebrow"><i class="ph-bold ph-sparkle"></i> Augmented Reality</p>
+        <h1>Tari Sigeh Penguten</h1>
+        <p class="sub">Tarian Tradisional Provinsi Lampung</p>
+        <figure class="bingkai">
+          <img src="assets/penari.webp" width="336" height="880" alt="Penari Sigeh Penguten berkostum adat Lampung dengan siger emas">
+        </figure>
+      </header>
+
+      <div class="tapis naik" aria-hidden="true"></div>
+
+      <section class="bagian naik" id="sumber-tentang">
+        <h2><i class="ph-bold ph-book-open-text"></i> Tentang Tarian</h2>
+        <p>Tari Sigeh Penguten adalah tarian tra&shy;di&shy;sio&shy;nal Lampung yang me&shy;lam&shy;bang&shy;kan peng&shy;hor&shy;mat&shy;an dan pe&shy;nyam&shy;but&shy;an tamu. Tarian ini men&shy;cer&shy;min&shy;kan ke&shy;ra&shy;mah&shy;an dan ke&shy;so&shy;pan&shy;an ma&shy;sya&shy;ra&shy;kat Lampung. Di&shy;ba&shy;wa&shy;kan oleh penari pe&shy;rem&shy;pu&shy;an dengan ge&shy;rak&shy;an anggun, tarian ini memiliki ciri khas peng&shy;gu&shy;na&shy;an tepak berisi sirih serta pa&shy;kai&shy;an adat yang di&shy;leng&shy;ka&shy;pi siger. Selain sebagai hi&shy;bur&shy;an, Tari Sigeh Penguten juga menjadi bentuk pe&shy;les&shy;ta&shy;ri&shy;an budaya dan iden&shy;ti&shy;tas ma&shy;sya&shy;ra&shy;kat Lampung.</p>
+        <ul class="ciri">
+          <li><i class="ph-bold ph-hand-heart"></i> Penyambutan tamu</li>
+          <li><i class="ph-bold ph-leaf"></i> Tepak berisi sirih</li>
+          <li><i class="ph-bold ph-crown"></i> Mahkota siger</li>
+        </ul>
+      </section>
+
+      <div class="tapis naik" aria-hidden="true"></div>
+
+      <section class="bagian naik">
+        <h2><i class="ph-bold ph-hand-tap"></i> Cara Memakai</h2>
+        <ol class="langkah">
+          <li><span>Tekan <b>Mulai AR</b> lalu izinkan akses kamera.</span></li>
+          <li><span>Arahkan kamera ke poster sampai seluruh poster terlihat.</span></li>
+          <li><span>Penari muncul dan menari di atas poster. Ketuk label untuk membaca keterangan kostum.</span></li>
+          <li><span>Cubit untuk zoom, geser untuk memutar, ketuk dua kali untuk kembali semula.</span></li>
+        </ol>
+      </section>
+
+      <section class="pengembang naik" id="sumber-pengembang" aria-label="Pengembang">
+        <div class="kepala">
+          <span class="inisial" aria-hidden="true">AS</span>
+          <div>
+            <p class="label-kecil">Nama Pengembang</p>
+            <p class="nama">Adinda Syefira Ayu Fatmaesa</p>
+          </div>
+        </div>
+        <dl>
+          <div><i class="ph-bold ph-identification-card"></i><dt>NPM</dt><dd>25160002</dd></div>
+          <div><i class="ph-bold ph-graduation-cap"></i><dt>Prodi</dt><dd>Pendidikan Guru Sekolah Dasar</dd></div>
+        </dl>
+      </section>
+
+      <p class="kecil naik">Gunakan Chrome (Android) atau Safari (iPhone).</p>
+    </article>
+
+    <div class="aksi">
       <p class="galat" id="galat" hidden></p>
-      <p class="kecil">Gunakan Chrome (Android) atau Safari (iPhone).</p>
+      <button id="mulai"><i class="ph-bold ph-camera"></i><span>Mulai AR</span></button>
     </div>
   </section>
 
@@ -129,12 +319,19 @@
   <svg id="garis" hidden></svg>
   <div id="pil-pil"></div>
   <div id="alat" hidden>
-    <button id="label" aria-pressed="true">Keterangan</button>
-    <button id="mode">Poster di meja</button>
-    <button id="musik" aria-pressed="true">Musik</button>
+    <button id="label" aria-pressed="true"><i class="ph-bold ph-tag"></i><span>Keterangan</span></button>
+    <button id="mode"><i class="ph-bold ph-table"></i><span>Poster di meja</span></button>
+    <button id="musik" aria-pressed="true"><i class="ph-bold ph-music-notes"></i><span>Musik</span></button>
+    <button id="buka-tentang" aria-pressed="false" aria-controls="tentang"><i class="ph-bold ph-info"></i><span>Tentang</span></button>
   </div>
+  <section id="tentang" hidden role="dialog" aria-label="Tentang Tari Sigeh Penguten">
+    <button class="tutup" id="tutup-tentang" aria-label="Tutup"><i class="ph-bold ph-x"></i></button>
+    <p class="jenis">Tentang</p>
+    <h2>Tari Sigeh Penguten</h2>
+    <div id="isi-tentang"></div>
+  </section>
   <section id="info" hidden role="dialog" aria-live="polite">
-    <button id="tutup" aria-label="Tutup">✕</button>
+    <button class="tutup" id="tutup" aria-label="Tutup"><i class="ph-bold ph-x"></i></button>
     <p class="jenis" id="info-jenis"></p>
     <h2 id="info-judul"></h2>
     <p class="isi" id="info-isi"></p>
@@ -191,7 +388,7 @@
         isi: "Hiasan pada bagian pinggang yang mengikat dan merapikan busana. Ornamen emasnya memberikan kesan mewah dan teratur. Secara simbolis, pending dapat dijelaskan sebagai pelengkap yang menegaskan kerapian dan kewibawaan penari.",
         titik: [493, 470], pil: [KIRI, BARIS[6]] },
       { label: "Nama Tarian", jenis: "Nama tarian", judul: "Tari Sigeh Penguten",
-        isi: "Tari Sigeh Penguten adalah tarian tradisional Lampung yang bermakna penghormatan dan penyambutan tamu. Tarian ini mencerminkan keramahan, kesopanan, serta kebanggaan masyarakat Lampung dalam melestarikan budaya daerah.",
+        isi: "Tari Sigeh Penguten adalah tarian tradisional Lampung yang melambangkan penghormatan dan penyambutan tamu. Tarian ini mencerminkan keramahan dan kesopanan masyarakat Lampung. Dibawakan oleh penari perempuan dengan gerakan anggun, tarian ini memiliki ciri khas penggunaan tepak berisi sirih serta pakaian adat yang dilengkapi siger. Selain sebagai hiburan, Tari Sigeh Penguten juga menjadi bentuk pelestarian budaya dan identitas masyarakat Lampung.",
         titik: [510, 27], pil: [KANAN, BARIS[0]] },
       { label: "Anting-Anting", jenis: "Perhiasan telinga", judul: "Anting-Anting",
         isi: "Perhiasan yang dikenakan pada telinga. Fungsinya mempercantik penampilan dan menyelaraskan perhiasan kepala dengan aksesori lainnya. Secara simbolis, perhiasan ini menggambarkan keanggunan perempuan.",
@@ -445,7 +642,10 @@
       const p = POSISI[mode];
       panggung.position.set(...p.pos);
       panggung.rotation.set(...p.rot);
-      $("mode").textContent = mode === "dinding" ? "Poster di meja" : "Poster di dinding";
+      // tombol menunjukkan mode yang akan dipilih berikutnya
+      const keMeja = mode === "dinding";
+      $("mode").querySelector("span").textContent = keMeja ? "Poster di meja" : "Poster di dinding";
+      $("mode").querySelector("i").className = keMeja ? "ph-bold ph-table" : "ph-bold ph-frame-corners";
     }
 
     // bayangan lembut di bawah kaki (gradasi radial), tanpa shadow map yang berat di HP
@@ -476,7 +676,7 @@
       $("galat").textContent = pesan;
       $("galat").hidden = false;
       $("mulai").disabled = false;
-      $("mulai").textContent = "Mulai AR";
+      $("mulai").querySelector("span").textContent = "Mulai AR";
     }
 
     let musik = null, musikNyala = true, terlihatPoster = false;
@@ -493,7 +693,7 @@
 
     async function mulai() {
       $("mulai").disabled = true;
-      $("mulai").textContent = "Menyiapkan kamera…";
+      $("mulai").querySelector("span").textContent = "Menyiapkan kamera…";
       $("galat").hidden = true;
       // musik pengiring: harus mulai di dalam ketukan tombol supaya HP (terutama iPhone) mengizinkan suara
       if (!musik) {
@@ -698,6 +898,7 @@
         $("info-jenis").textContent = k.jenis;
         $("info-judul").textContent = k.judul;
         $("info-isi").textContent = k.isi;
+        tutupTentang();
         $("info").hidden = false;
       }
 
@@ -810,6 +1011,32 @@
         aturLabel();
       });
     }
+
+    // lembar "Tentang" di layar AR: isinya disalin dari layar awal supaya teks cukup ditulis sekali
+    {
+      const tentang = $("sumber-tentang").cloneNode(true);
+      tentang.removeAttribute("id"); tentang.classList.remove("naik"); tentang.querySelector("h2").remove();
+      const tapis = document.createElement("div"); tapis.className = "tapis"; tapis.setAttribute("aria-hidden", "true");
+      const dev = $("sumber-pengembang").cloneNode(true);
+      dev.removeAttribute("id"); dev.classList.remove("naik");
+      $("isi-tentang").append(tentang, tapis, dev);
+    }
+    function tutupTentang() {
+      $("tentang").hidden = true;
+      $("buka-tentang").setAttribute("aria-pressed", "false");
+    }
+    $("buka-tentang").addEventListener("click", () => {
+      if (!$("tentang").hidden) return tutupTentang();
+      $("tutup").click(); // tutup kartu keterangan kostum kalau sedang terbuka
+      $("tentang").hidden = false;
+      $("tentang").scrollTop = 0;
+      $("buka-tentang").setAttribute("aria-pressed", "true");
+    });
+    $("tutup-tentang").addEventListener("click", tutupTentang);
+
+    // layar awal selalu mulai dari atas (Chrome suka mengembalikan posisi gulir lama saat dimuat ulang)
+    history.scrollRestoration = "manual";
+    $("awal").scrollTop = 0;
 
     $("mulai").addEventListener("click", mulai);
   </script>

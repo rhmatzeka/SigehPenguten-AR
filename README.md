@@ -26,6 +26,8 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
   kembali semula (di laptop: scroll dan drag mouse).
 - **Dua mode**: poster di dinding/layar (penari berdiri tegak di depan poster) atau poster di meja
   (penari berdiri keluar dari kertas).
+- **Tentang tarian & pengembang**: layar awal berisi deskripsi Tari Sigeh Penguten, cara memakai, dan identitas
+  pengembang. Saat AR berjalan, tombol **Tentang** membuka lembar yang sama tanpa menutup kamera.
 - **Ringan**: model 3D sekitar 2 MB (kompresi Draco), jadi cepat dimuat di HP.
 
 ## Cara pakai
@@ -35,7 +37,7 @@ panggung dan menari mengikuti gerakan dari video tari asli, lengkap dengan keter
 3. Tekan **Mulai AR**, izinkan akses kamera, lalu arahkan kamera ke seluruh poster.
 4. Cubit untuk zoom, geser untuk memutar penari, ketuk dua kali untuk kembali semula.
 5. Ketuk label untuk membaca keterangan. Tombol **Keterangan** menampilkan/menyembunyikan label,
-   tombol **Poster di meja** mengganti mode saat poster diletakkan rata, tombol **Musik** mematikan/menyalakan musik.
+   tombol **Poster di meja** mengganti mode saat poster diletakkan rata, tombol **Musik** mematikan/menyalakan musik, tombol **Tentang** menampilkan deskripsi tarian dan pengembang.
 
 ## Model 3D
 
@@ -102,3 +104,9 @@ python3 -m http.server 8000
 - Teks keterangan kostum diambil dari materi tugas (bagian kostum Tari Sigeh Penguten).
 - QR di poster sekarang langsung ke <https://tarisigehpenguten.vercel.app>. Poster lama yang sudah dicetak
   (QR ke `rhmatzeka.github.io/tari-sigeh-penguten`) tetap berfungsi karena dialihkan ke GitHub Pages.
+
+## Pengembang
+
+- **Nama:** Adinda Syefira Ayu Fatmaesa
+- **NPM:** 25160002
+- **Prodi:** Pendidikan Guru Sekolah Dasar

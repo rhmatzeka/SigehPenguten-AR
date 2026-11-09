@@ -223,11 +223,18 @@
     #tentang {
       position: fixed; z-index: 8; left: 50%; transform: translateX(-50%);
       bottom: calc(92px + env(safe-area-inset-bottom)); width: min(92vw, 420px);
-      max-height: calc(100% - 140px - env(safe-area-inset-bottom) - env(safe-area-inset-top)); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #d8bf86 transparent;
-      background: var(--card); border-radius: 22px; padding: 20px 18px 18px;
+      max-height: calc(100% - 140px - env(safe-area-inset-bottom) - env(safe-area-inset-top));
+      display: flex; flex-direction: column; overflow: hidden;
+      background: var(--card); border-radius: 22px;
       box-shadow: 0 14px 40px rgba(0, 0, 0, .45); border-top: 5px solid var(--accent);
       animation: naik .35s cubic-bezier(.2, .8, .2, 1);
     }
+    /* hanya isi yang digulir; kotak luar (dan tombol tutup) tetap di tempat */
+    #tentang .gulir {
+      overflow-y: auto; overscroll-behavior: contain; padding: 20px 18px 18px; min-height: 0;
+      scrollbar-width: thin; scrollbar-color: #d8bf86 transparent;
+    }
+    #tentang .tutup { z-index: 1; box-shadow: 0 2px 8px rgba(43, 26, 10, .25); }
     #tentang .jenis { margin: 0 0 4px; font-size: .72rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .08em; }
     #tentang h2 { margin: 0 36px 10px 0; font-family: var(--serif); font-weight: 400; font-size: 1.5rem; line-height: 1.1; }
     #tentang .bagian p { font-size: .9rem; }
@@ -326,9 +333,11 @@
   </div>
   <section id="tentang" hidden role="dialog" aria-label="Tentang Tari Sigeh Penguten">
     <button class="tutup" id="tutup-tentang" aria-label="Tutup"><i class="ph-bold ph-x"></i></button>
-    <p class="jenis">Tentang</p>
-    <h2>Tari Sigeh Penguten</h2>
-    <div id="isi-tentang"></div>
+    <div class="gulir" id="gulir-tentang">
+      <p class="jenis">Tentang</p>
+      <h2>Tari Sigeh Penguten</h2>
+      <div id="isi-tentang"></div>
+    </div>
   </section>
   <section id="info" hidden role="dialog" aria-live="polite">
     <button class="tutup" id="tutup" aria-label="Tutup"><i class="ph-bold ph-x"></i></button>
@@ -1029,7 +1038,7 @@
       if (!$("tentang").hidden) return tutupTentang();
       $("tutup").click(); // tutup kartu keterangan kostum kalau sedang terbuka
       $("tentang").hidden = false;
-      $("tentang").scrollTop = 0;
+      $("gulir-tentang").scrollTop = 0;
       $("buka-tentang").setAttribute("aria-pressed", "true");
     });
     $("tutup-tentang").addEventListener("click", tutupTentang);

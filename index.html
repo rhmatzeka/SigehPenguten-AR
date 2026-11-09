@@ -947,6 +947,13 @@
             m.emissiveMap = m.map;
             m.emissiveIntensity = 0.35;
             m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          } else if (m.name === "kulit_tangan") {
+            // tangan buatan tanpa tekstur: samakan dengan warna kulit wajah di tekstur foto (tidak abu-abu/kayu)
+            m.color.set(0xf0c0a4);
+            m.roughness = 0.6;
+            m.emissive = new THREE.Color(0xf0c0a4);
+            m.emissiveIntensity = 0.3;
+            m.side = THREE.DoubleSide;
           } else if (m.metalness > 0.5) {
             m.envMapIntensity = 1.2; // kuku tanggai emas berkilau
           }

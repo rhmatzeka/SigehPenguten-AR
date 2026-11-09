@@ -89,14 +89,14 @@ def bangun_tangan(Lp, kanan_ke_telunjuk, jari_wrist):
         pangkal = Y * (0.92 * Lp) + X * (u * lebar) + Z * (0.05 * Lp)
         arah = (Y + X * (u * 0.12)).normalized()    # nyaris sejajar: jari rapat, bukan mekar seperti garpu
         L = pj * Lp
-        ruas = _kurva(pangkal, arah, X, L, 5, -32)  # lentik ke arah punggung tangan
-        rj = [0.105 * Lp, 0.1 * Lp, 0.093 * Lp, 0.085 * Lp, 0.077 * Lp, 0.065 * Lp]
+        ruas = _kurva(pangkal, arah, X, L, 5, -45)  # lentik ke arah punggung tangan (khas tari Sigeh)
+        rj = [0.09 * Lp, 0.084 * Lp, 0.076 * Lp, 0.068 * Lp, 0.06 * Lp, 0.05 * Lp]  # ramping, meruncing
         _tabung(kulit, ruas, rj, X, Z, skala_z=0.82)
         # kuku tanggai: kerucut emas ramping dari ruas terakhir, melanjutkan lengkung jari
         d_ujung = (ruas[-1] - ruas[-2]).normalized()
         n = 10
-        tg = _kurva(ruas[-3].lerp(ruas[-2], 0.5), d_ujung, X, 1.05 * Lp, n, -38)
-        rt = [0.085 * Lp * (1 - k / n) ** 1.1 + 0.004 * Lp for k in range(n + 1)]
+        tg = _kurva(ruas[-3].lerp(ruas[-2], 0.5), d_ujung, X, 1.05 * Lp, n, -62)  # melengkung ke belakang
+        rt = [0.07 * Lp * (1 - k / n) ** 1.2 + 0.003 * Lp for k in range(n + 1)]
         _tabung(emas, tg, rt, X, Z, skala_z=0.85)
     # ibu jari: dari sisi telunjuk dekat pergelangan, dilipat ke depan telapak (bukan mencuat ke samping)
     pangkal = Y * (0.22 * Lp) + X * (0.40 * lebar) - Z * (0.04 * Lp)

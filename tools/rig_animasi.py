@@ -40,6 +40,9 @@ TEBAL_LENGAN_MAKS = 0.08   # irisan lebih tebal dari ini berarti lengan menempel
 LENGAN_R0, LENGAN_R1 = 0.06, 0.085
 LENGAN_BELAKANG = 0.03     # titik sejauh ini di belakang lengan yang menempel di depan badan = badan
 GELANG_R = 0.035           # gelang emas di pergelangan tetap ikut lengan
+# lengan bawah yang di foto melintang di depan badan: hanya lengan berbaju yang rapat (radius ini) ikut lengan;
+# renda baju badan di sekitarnya ikut badan (kalau tidak, terbawa jadi lembaran putih saat lengan direntang)
+RAPAT_R0, RAPAT_R1 = 0.034, 0.046
 
 
 def siapkan_model():
@@ -324,6 +327,13 @@ def pisahkan_lengan(obj, arm):
                 continue
             d = min(jarak_ruas(v.co, a, b) for a, b in ruas)
             f = min(1.0, max(0.0, (d - LENGAN_R0) / (LENGAN_R1 - LENGAN_R0)))
+            a1, b1 = ruas[1]
+            if (sendi_tempel(a1) or sendi_tempel(b1)) and jarak_ruas(v.co, *ruas[0]) > LENGAN_R0:
+                ab = b1 - a1
+                t = min(1.0, max(0.0, (v.co - a1).dot(ab) / max(1e-9, ab.length_squared)))
+                if t > 0.3:  # dekat siku dibiarkan longgar (kerut lengan baju)
+                    d1 = (v.co - (a1 + ab * t)).length
+                    f = max(f, min(1.0, max(0.0, (d1 - RAPAT_R0) / (RAPAT_R1 - RAPAT_R0))))
             # siger (emas, bukan renda putih/kulit) yang tersentuh tangan terangkat ikut kepala
             # (jari tangan asli yang bertumpuk dengan siger tidak dibedakan: tangannya diganti tangan buatan)
             if v.co.z > z_kepala - 0.02 and emas[v.index] and jarak_ruas(v.co, *ruas[1]) > GELANG_R:
@@ -621,7 +631,11 @@ def buang_melar(arm, obj, langkah=8, batas=2.4):
     atas_ = {"chest", "neck", "shoulder.L", "shoulder.R", "upper_arm.L", "upper_arm.R",
              "forearm.L", "forearm.R", "hand.L", "hand.R"}
     z_pinggang = arm.data.bones["spine"].tail_local.z
-    boleh = np.array([all(dominan[v] in atas_ for v in t3) and rest[t3, 2].min() > z_pinggang for t3 in tri])
+    rantai_lengan = {g.index for g in obj.vertex_groups if g.name.split(".")[0] in ("shoulder", "upper_arm", "forearm", "hand")}
+    w_lengan = np.array([sum(g.weight for g in v.groups if g.group in rantai_lengan) for v in me.vertices])
+    boleh = np.array([(all(dominan[v] in atas_ for v in t3) and rest[t3, 2].min() > z_pinggang)
+                      # kain badan/perut yang tersangkut lengan (bobot campuran) -> lembaran dari siku ke pinggang
+                      or w_lengan[t3].max() > 0.15 for t3 in tri])
     hapus = (melar > batas) & boleh
     lapor(hapus, "dibuang (lengan & badan atas):")
     bm = bmesh.new()

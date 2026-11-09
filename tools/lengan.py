@@ -113,15 +113,42 @@ def ganti_lengan(obj, arm):
         if any(g.group == g_kepala and g.weight > 0.5 for g in v.groups):
             continue
         for s, arah_x in (("L", 1), ("R", -1)):
-            S, E, _ = seg[s]
+            S, E, W = seg[s]
+            # di luar garis badan (lebih ke samping dari 85% lebar bahu) dan dekat lengan atas / sekitar siku
+            if v.co.x * arah_x < abs(S.x) * 0.85:
+                continue
             ab = E - S
             t = min(1.0, max(0.0, (v.co - S).dot(ab) / ab.length_squared))
-            off = v.co - (S + ab * t)
-            if off.length < 0.075 and off.x * arah_x > 0.006 and t > 0.08:
+            d_atas = (v.co - (S + ab * t)).length if t > 0.08 else 1.0
+            d_siku = _jarak(v.co, E, E + (W - E) * 0.4)
+            if min(d_atas, d_siku) < 0.09:
                 hapus.append(v.index)
                 luar += 1
                 break
     print(f"sisa lengan baju di sisi luar dibuang: {luar} titik")
+
+    # bekas lengan bawah & tangan lama yang melintang di depan badan (bobotnya sudah badan, tapi bentuknya masih
+    # lengan/jari): buang bagian depan silinder lengan di sepanjang lengan bawah sampai ujung jari lama
+    depan = 0
+    for s in "LR":
+        _, E, W = seg[s]
+        h = bones[f"hand.{s}"]
+        ujung = W + (h.tail_local - h.head_local).normalized() * 0.09
+        for v in me.vertices:
+            if v.index in buatan or v.index in sudah:
+                continue
+            if any(g.group == g_kepala and g.weight > 0.5 for g in v.groups):
+                continue
+            for a, b in ((E, W), (W, ujung)):
+                ab = b - a
+                t = min(1.0, max(0.0, (v.co - a).dot(ab) / ab.length_squared))
+                q = a + ab * t
+                if (v.co - q).length < 0.04 and v.co.y < q.y + 0.008:  # model menghadap -Y: depan = y kecil
+                    hapus.append(v.index)
+                    sudah.add(v.index)
+                    depan += 1
+                    break
+    print(f"bekas lengan bawah & tangan lama di depan badan dibuang: {depan} titik")
 
     # ukuran lengan dari titik lengan asli (persentil bawah: renda baju yang ikut terbobot lengan lebih jauh)
     ukuran = {}
@@ -136,7 +163,7 @@ def ganti_lengan(obj, arm):
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.verts.ensure_lookup_table()
-    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in hapus], context="VERTS")
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in sorted(set(hapus))], context="VERTS")
     # serpihan lepas kecil (bukan tangan buatan)
     dilihat, sisa = set(), []
     for v0 in bm.verts:

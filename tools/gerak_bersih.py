@@ -136,16 +136,19 @@ def main(src, out):
     # --- arah lengan dari video (lokal), dihaluskan ---
     def arah_lokal(a, b):
         v = np.stack([rot_z(x, -y) for x, y in zip(P[:, b] - P[:, a], y_hip)])
-        return satuan(haluskan(satuan(v), fps * 0.15))
+        v = satuan(haluskan(satuan(v), fps * 0.08))
+        # perbesar gerak: simpangan dari rata-rata 2 detik dikali 1.4 supaya tangan benar-benar menari
+        rata = satuan(haluskan(v, fps * 1.0))
+        return satuan(rata + (v - rata) * 1.4)
 
     lengan_video = {}
     for sisi, (sh, el, wr, pk, ix) in (("L", (11, 13, 15, 17, 19)), ("R", (12, 14, 16, 18, 20))):
         ua = arah_lokal(sh, el)
-        # lengan atas tidak diangkat lebih dari 15 derajat di atas datar (lengan baju renda tidak melar)
-        maks = np.sin(np.radians(15))
+        # lengan atas paling tinggi 40 derajat di atas datar (lengan buatan tidak melar, boleh terangkat)
+        maks = np.sin(np.radians(40))
         lebih = ua[:, 2] > maks
         dat = satuan(ua[:, :2])
-        ua[lebih] = np.concatenate([dat[lebih] * np.cos(np.radians(15)), np.full((lebih.sum(), 1), maks)], axis=1)
+        ua[lebih] = np.concatenate([dat[lebih] * np.cos(np.radians(40)), np.full((lebih.sum(), 1), maks)], axis=1)
         fa = arah_lokal(el, wr)
         tg = np.stack([rot_z(x, -y) for x, y in zip((P[:, pk] + P[:, ix]) / 2 - P[:, wr], y_hip)])
         tg = satuan(haluskan(satuan(tg), fps * 0.2))
@@ -214,6 +217,12 @@ def main(src, out):
             ua_ = satuan((1 - w) * ua + w * ua_o)
             fa_ = satuan((1 - w) * fa + w * fa_o)
             tg_ = satuan((1 - w) * tg + w * tg_o)
+            if w < 1:
+                # ukel: pergelangan berputar pelan bergantian kiri-kanan, jari lentik ke atas (khas tari Sigeh)
+                sudut = (1 - w) * np.radians(40) * np.sin(2 * np.pi * t[f] / 1.6 + (0 if s > 0 else np.pi))
+                c_, s_ = np.cos(sudut), np.sin(sudut)
+                tg_ = tg_ * c_ + np.cross(fa_, tg_) * s_ + fa_ * fa_.dot(tg_) * (1 - c_)
+                tg_ = satuan(tg_ + atas * 0.35 * (1 - w))
             siku = bahu + ua_ * lengan_a
             wr = siku + fa_ * lengan_b
             Q[f, eli], Q[f, wri] = siku, wr

@@ -543,7 +543,7 @@ def pasang_gerak(arm, J_rest):
                 R = y_bawa.rotation_difference(arah.normalized()).to_matrix() @ R_bawa
                 if nama.startswith("hand."):
                     # titik jari MediaPipe di video kecil & berisik: redam putaran pergelangan
-                    R = R_bawa.to_quaternion().slerp(R.to_quaternion(), 0.6).to_matrix()
+                    R = R_bawa.to_quaternion().slerp(R.to_quaternion(), 0.9).to_matrix()  # data tangan sudah bersih
             lokasi = bawa.translation
             if nama == "hips":
                 lokasi = Vector((hip_rest.x, hip_rest.y, hp.z * skala))

@@ -280,7 +280,7 @@
         <p>Tari Sigeh Penguten adalah tarian tra&shy;di&shy;sio&shy;nal Lampung yang me&shy;lam&shy;bang&shy;kan peng&shy;hor&shy;mat&shy;an dan pe&shy;nyam&shy;but&shy;an tamu. Tarian ini men&shy;cer&shy;min&shy;kan ke&shy;ra&shy;mah&shy;an dan ke&shy;so&shy;pan&shy;an ma&shy;sya&shy;ra&shy;kat Lampung. Di&shy;ba&shy;wa&shy;kan oleh penari pe&shy;rem&shy;pu&shy;an dengan ge&shy;rak&shy;an anggun, tarian ini memiliki ciri khas peng&shy;gu&shy;na&shy;an tepak berisi sirih serta pa&shy;kai&shy;an adat yang di&shy;leng&shy;ka&shy;pi siger. Selain sebagai hi&shy;bur&shy;an, Tari Sigeh Penguten juga menjadi bentuk pe&shy;les&shy;ta&shy;ri&shy;an budaya dan iden&shy;ti&shy;tas ma&shy;sya&shy;ra&shy;kat Lampung.</p>
         <ul class="ciri">
           <li><i class="ph-bold ph-hand-heart"></i> Penyambutan tamu</li>
-          <li><i class="ph-bold ph-leaf"></i> Tepak berisi sirih</li>
+          <li><i class="ph-bold ph-leaf"></i> Tapak sirih</li>
           <li><i class="ph-bold ph-crown"></i> Mahkota siger</li>
         </ul>
       </section>
@@ -373,7 +373,7 @@
     // diikuti tiap frame (ikut kulit yang bergerak). bahan = batasi pencarian ke material itu, belakang = ambil
     // permukaan belakang. pil: kolom kiri/kanan layar; urutan dalam array = urutan baris dari atas.
     const SILUET = { x0: 311, x1: 683, y0: 0, y1: 993 };
-    const KIRI = -0.22, KANAN = 0.22, BARIS = [0.47, 0.40, 0.33, 0.26, 0.19, 0.12, 0.05];
+    const KIRI = -0.22, KANAN = 0.22, BARIS = [0.47, 0.40, 0.33, 0.26, 0.19, 0.12, 0.05, -0.02];
     const KETERANGAN = [
       { label: "Siger", jenis: "Mahkota", judul: "Siger Lampung",
         isi: "Mahkota besar berwarna emas yang dikenakan di kepala. Siger melambangkan identitas masyarakat Lampung, kehormatan, dan kebanggaan terhadap adat istiadat. Hiasan merah dan emas memperkuat kesan megah pada busana.",
@@ -396,6 +396,10 @@
       { label: "Pending", jenis: "Ikat pinggang", judul: "Pending atau Ikat Pinggang",
         isi: "Hiasan pada bagian pinggang yang mengikat dan merapikan busana. Ornamen emasnya memberikan kesan mewah dan teratur. Secara simbolis, pending dapat dijelaskan sebagai pelengkap yang menegaskan kerapian dan kewibawaan penari.",
         titik: [493, 470], pil: [KIRI, BARIS[6]] },
+      // titik menempel ke kotak tapak (dibawa lalu ditaruh di lantai), bukan ke kulit penari
+      { label: "Tapak Sirih", jenis: "Properti tari", judul: "Tapak Sirih", tepak: true,
+        isi: "Tapak sirih berisi daun sirih yang menjadi simbol penghormatan, keramahan, dan ketulusan masyarakat Lampung dalam menyambut tamu. Tapak sirih juga melambangkan kesopanan serta bentuk penghargaan kepada tamu yang datang.",
+        pil: [KIRI, BARIS[7]] },
       { label: "Nama Tarian", jenis: "Nama tarian", judul: "Tari Sigeh Penguten",
         isi: "Tari Sigeh Penguten adalah tarian tradisional Lampung yang melambangkan penghormatan dan penyambutan tamu. Tarian ini mencerminkan keramahan dan kesopanan masyarakat Lampung. Dibawakan oleh penari perempuan dengan gerakan anggun, tarian ini memiliki ciri khas penggunaan tepak berisi sirih serta pakaian adat yang dilengkapi siger. Selain sebagai hiburan, Tari Sigeh Penguten juga menjadi bentuk pelestarian budaya dan identitas masyarakat Lampung.",
         titik: [510, 27], pil: [KANAN, BARIS[0]] },
@@ -569,6 +573,26 @@
       daun.scale.y = 0.6;
       daun.position.y = puncak;
       g.add(daun);
+      // daun sirih: daun hijau berbentuk hati, pangkal di tepi gundukan bunga, ujung lancip mencuat keluar
+      const hati = new THREE.Shape();
+      hati.moveTo(0, 0.03);
+      hati.bezierCurveTo(-0.03, -0.02, -0.09, 0, -0.08, 0.06);
+      hati.bezierCurveTo(-0.07, 0.12, -0.02, 0.17, 0, 0.21);
+      hati.bezierCurveTo(0.02, 0.17, 0.07, 0.12, 0.08, 0.06);
+      hati.bezierCurveTo(0.09, 0, 0.03, -0.02, 0, 0.03);
+      const geoSirih = new THREE.ShapeGeometry(hati, 6);
+      geoSirih.rotateX(-Math.PI / 2); // rebah, ujung daun ke -z
+      const bahanSirih = new THREE.MeshStandardMaterial({ color: 0x2f7a22, roughness: 0.5, emissive: 0x0c2208, side: THREE.DoubleSide });
+      for (let i = 0; i < 10; i++) {
+        const sudut = (i + 0.5) / 10 * Math.PI * 2;
+        const helai = new THREE.Mesh(geoSirih, bahanSirih);
+        helai.position.set(Math.cos(sudut) * 0.24, puncak + 0.02, Math.sin(sudut) * 0.24);
+        helai.rotation.order = "YXZ";
+        helai.rotation.y = -(sudut + Math.PI / 2);   // ujung daun mengarah keluar dari pusat
+        helai.rotation.x = 0.45 + (i % 3) * 0.12;    // daun mengipas ke atas di sekeliling bunga
+        helai.scale.setScalar(1.5 + (i % 2) * 0.25);
+        g.add(helai);
+      }
       const siger = sigerKecil(0.4, 2.6);
       siger.position.y = puncak;
       g.add(siger);
@@ -804,6 +828,7 @@
       });
       const tinggi = max.y - min.y, R = 0.018 * tinggi;
       for (const k of KETERANGAN) {
+        if (k.tepak) continue;
         // letak di gambar sumber -> koordinat model (tampak depan, model menghadap +Z)
         const tx = min.x + (k.titik[0] - SILUET.x0) / (SILUET.x1 - SILUET.x0) * (max.x - min.x);
         const ty = max.y - (k.titik[1] - SILUET.y0) / (SILUET.y1 - SILUET.y0) * tinggi;
@@ -1032,6 +1057,7 @@
         const taruh = letakTangan(tepak, penari);
         taruh.tengah.y = 0;
         tepak.lantai = { pos: taruh.tengah, arah: taruh.arah };
+        for (const k of KETERANGAN) if (k.tepak) k.obj = tepak.obj;
         mixer.setTime(0);
         if (param.has("t")) mixer.setTime(parseFloat(param.get("t")) || 0);
         if (param.has("jeda")) { mixer.timeScale = 0; window.__uji = { panggung, anchor, camera, mixer }; } // pengait uji
@@ -1136,7 +1162,8 @@
           const kol = KETERANGAN.filter((k) => k.obj && (k.pil[0] < 0) === kiri);
           if (!kol.length) continue;
           for (const k of kol) {
-            k.obj.getVertexPosition(k.vi, v).applyMatrix4(k.obj.matrixWorld);
+            if (k.tepak) k.obj.localToWorld(v.set(0, 0.55, 0.5)); // sisi depan badan berukir
+            else k.obj.getVertexPosition(k.vi, v).applyMatrix4(k.obj.matrixWorld);
             // saat duduk bersimpuh kain tapis terhampar di lantai (shader "rok tergerai") dan tak terlihat dari
             // depan; titik ditahan setinggi lipatan kain di atas lantai supaya tetap menunjuk kain, bukan panggung
             panggung.worldToLocal(v);
